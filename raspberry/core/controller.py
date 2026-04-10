@@ -6,6 +6,26 @@ from hardware.handControl import HandControl
 from hardware.objectRec import ObjectRec
 
 
+"""
+Resumen de lo que hace cada atributo que tiene el controlador:
+- config_path: ruta al archivo de configuración (config.ini)
+- mode: modo actual del sistema (init, hand, voice, camera)
+- last_position_mapped: última posición mapeada a un objeto detectado (si existe
+- hand: instancia del subsistema de control de la mano
+- object_rec: instancia del subsistema de reconocimiento de objetos
+- OBJECT_POSITION_MAPPING: mapeo de objetos detectados a posiciones predefinidas de la mano
+
+
+Responsabilidades de la clase:
+- Mantener el modo actual del sistema
+- Exponer operaciones de alto nivel para la mano (abrir, cerrar, mover a posición, movimiento manual)
+- Exponer operaciones de alto nivel para la cámara (detectar mejor objeto, detectar y mover)
+- Devolver un estado resumido del sistema
+- Manejar el cierre del sistema liberando recursos
+
+"""
+
+
 class HandSystemController:
     """
     Controlador principal del nuevo backend.
@@ -34,28 +54,35 @@ class HandSystemController:
         "keyboard": 8,
     }
 
-    def __init__(self, config_path: str = "config/config.ini") -> None:
+    def __init__(self, config_path: str = "config/config.ini", simulation: bool = False) -> None:
         self.config_path = str(Path(config_path))
         self.mode: SystemMode = SystemMode.INIT
         self.last_position_mapped: Optional[int] = None
+        self.simulation = simulation
 
-        # Subsistemas mínimos para arrancar el backend nuevo
-        self.hand = HandControl(self.config_path)
-        self.object_rec = ObjectRec("object_rec", self.config_path)
 
+        if not self.simulation:
+            # Subsistemas mínimos para arrancar el backend nuevo
+            self.hand = HandControl(self.config_path) # Inicializa la mano con el config.ini
+            self.object_rec = ObjectRec("object_rec", self.config_path) # Inicializa la cámara con el config.ini
+        
+        else:
+            # Modo simulación: no inicializamos los subsistemas reales, pero sí creamos objetos simulados para evitar errores al llamar a métodos
+            self.hand = None
+            self.object_rec = None
     # -------------------------------------------------------------------------
     # MODOS
     # -------------------------------------------------------------------------
 
-    def set_mode_hand(self) -> Dict[str, Any]:
-        self.mode = SystemMode.HAND
+    def set_mode_hand(self) -> Dict[str, Any]: # Cambia el modo del sistema a "mano"
+        self.mode = SystemMode.HAND 
         return {
             "ok": True,
             "mode": self.mode.value,
             "message": "Modo mano activado."
         }
 
-    def set_mode_voice(self) -> Dict[str, Any]:
+    def set_mode_voice(self) -> Dict[str, Any]: # Cambia el modo del sistema a "voz"
         self.mode = SystemMode.VOICE
         return {
             "ok": True,
@@ -63,7 +90,7 @@ class HandSystemController:
             "message": "Modo voz activado."
         }
 
-    def set_mode_camera(self) -> Dict[str, Any]:
+    def set_mode_camera(self) -> Dict[str, Any]: # Cambia el modo del sistema a "cámara"
         self.mode = SystemMode.CAMERA
         return {
             "ok": True,
@@ -75,7 +102,7 @@ class HandSystemController:
     # MANO
     # -------------------------------------------------------------------------
 
-    def open_hand(self) -> Dict[str, Any]:
+    def open_hand(self) -> Dict[str, Any]: # Abre la mano usando el mismo esquema que el código legado
         """
         Abre la mano usando el mismo esquema que el código legado.
         """
@@ -86,6 +113,14 @@ class HandSystemController:
             "thumb0": "open",
             "thumb1": "open",
         }
+        
+        if self.simulation:
+            return {
+                "ok": True,
+                "message": "Simulación: orden de apertura enviada a la mano.",
+                "command": command,
+            }
+
         self.hand.move_open_close(command)
         return {
             "ok": True,
@@ -97,29 +132,49 @@ class HandSystemController:
         """
         Para todos los dedos.
         """
-        self.hand.stop_movement({
+        command = {
             "ring": "stop",
             "middle": "stop",
             "index": "stop",
             "thumb0": "stop",
             "thumb1": "stop",
-        })
+        }
+
+        if self.simulation:
+            return {
+                "ok": True,
+                "message": "Simulación: orden de parada enviada a la mano.",
+                "command": command,
+            }
+
+        self.hand.stop_movement(command)
         return {
             "ok": True,
-            "message": "Orden de parada enviada a la mano."
+            "message": "Orden de parada enviada a la mano.",
+            "command": command,
         }
 
     def move_to_position(self, position_id: int) -> Dict[str, Any]:
         """
         Mueve la mano a una posición predefinida del config.ini.
         """
-        self.hand.move_position(position_id)
         self.last_position_mapped = position_id
+
+        if self.simulation:
+            return {
+                "ok": True,
+                "message": f"Simulación: orden enviada para mover la mano a la posición {position_id}.",
+                "position_id": position_id,
+            }
+
+        self.hand.move_position(position_id)
         return {
             "ok": True,
             "message": f"Orden enviada para mover la mano a la posición {position_id}.",
             "position_id": position_id,
         }
+    
+
 
     def move_manual(self, command: Dict[str, str]) -> Dict[str, Any]:
         """
@@ -131,6 +186,13 @@ class HandSystemController:
             "thumb0": "open"
         }
         """
+        if self.simulation:
+            return {
+                "ok": True,
+                "message": "Simulación: orden manual enviada a la mano.",
+                "command": command,
+            }
+
         self.hand.move_open_close(command)
         return {
             "ok": True,
@@ -146,18 +208,29 @@ class HandSystemController:
         """
         Lanza la detección de objetos y devuelve el mejor objeto detectado.
         """
+        if self.simulation:
+            return {
+                "ok": True,
+                "mode": self.mode.value,
+                "object": "cup",
+                "detection_quality": 87.5,
+            }
+
         self.object_rec.clear_status()
         self.object_rec.detect_object()
 
         best_object = self.object_rec.get_best_object()
         best_quality = self.object_rec.get_best_detection_quality()
-
         return {
             "ok": True,
             "mode": self.mode.value,
             "object": best_object,
             "detection_quality": best_quality,
         }
+    
+
+
+
 
     def detect_object_and_move(self) -> Dict[str, Any]:
         """
@@ -206,10 +279,31 @@ class HandSystemController:
     # ESTADO
     # -------------------------------------------------------------------------
 
-    def refresh_hand_status(self) -> Dict[str, Any]:
+    def refresh_hand_status(self) -> Dict[str, Any]: 
         """
         Fuerza una lectura del estado actual de la mano.
         """
+        if self.simulation:
+            return {
+                "ok": True,
+                "hand_status": {
+                    "status": "simulated",
+                    "ring": 700,
+                    "middle": 3000,
+                    "index": 3000,
+                    "thumb0": 3000,
+                    "thumb1": 3000,
+                },
+                "hand_target": {
+                    "command": None,
+                    "ring": 700,
+                    "middle": 3000,
+                    "index": 3000,
+                    "thumb0": 3000,
+                    "thumb1": 3000,
+                },
+            }
+
         self.hand.update_status()
         return {
             "ok": True,
@@ -221,6 +315,27 @@ class HandSystemController:
         """
         Devuelve un resumen del estado del sistema.
         """
+        if self.simulation:
+            return {
+                "ok": True,
+                "mode": self.mode.value,
+                "last_position_mapped": self.last_position_mapped,
+                "hand_status": {
+                    "status": "simulated"
+                },
+                "hand_target": {
+                    "command": None
+                },
+                "object_status": {
+                    "object": "cup",
+                    "detection_quality": 87.5
+                },
+                "object_best_status": {
+                    "object": "cup",
+                    "detection_quality": 87.5
+                },
+            }
+
         hand_status = None
         hand_target = None
         object_status = None
@@ -256,6 +371,12 @@ class HandSystemController:
         """
         Libera recursos del sistema.
         """
+        if self.simulation:
+            return {
+                "ok": True,
+                "message": "Simulación: sistema detenido y recursos liberados."
+            }
+
         try:
             self.stop_hand()
         except Exception:
