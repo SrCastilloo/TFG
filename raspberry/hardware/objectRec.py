@@ -29,25 +29,17 @@ class ObjectRec:
 		self.__best_last_status = {"object": None, "detection_quality": 0.0}
 		self.__running = False
 
-		''' Initialize OpenCV DNN model '''
-		self.classNames = []
-		classFile = "/home/pi/Desktop/Object_Detection_Files/coco.names"
-		with open(classFile, "rt") as f:
-			self.classNames = f.read().rstrip("\n").split("\n")
-			
-		configPath = "/home/pi/Desktop/Object_Detection_Files/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt" 
-		weightsPath = "/home/pi/Desktop/Object_Detection_Files/frozen_inference_graph.pb"
-		
-		self.net = cv2.dnn_DetectionModel(weightsPath, configPath) 
-		self.net.setInputSize(320, 320)
-		self.net.setInputScale(1.0 / 127.5)
-		self.net.setInputMean((127.5, 127.5, 127.5)) 
-		self.net.setInputSwapRB(True)
+		# Paths and settings for the object detection model
+		self.__labels_path = None # Path of the labels of the object detection model
+		self.__model_config_path = None # Path of the model configuration file
+		self.__model_weights_path = None # Path of the model weights file
+		self.__camera_index = 0 # Index of the camera to use
+		self.__camera_width = 640 # Width of the camera frame
+		self.__camera_height = 480 # Height of the camera frame
 
 		
-		self.cap = cv2.VideoCapture(0)
-		self.cap.set(3, 640) 
-		self.cap.set(4, 480)
+
+
 
 
 		''' Load config file '''
@@ -57,6 +49,7 @@ class ObjectRec:
 		try:
 			self.__config.read(conf_file)           # read the config file
 			self.__load_config()                    # load config data
+			self.__init_model_and_camera()          # initialize the object detection model and the camera
 		except KeyError as e:
 			print(traceback.format_exc(), f"There has been a KeyError in the config file. Check the config file and the path.\nKey: {str(e)} does not exist.")
 		except OSError as e:
@@ -68,9 +61,11 @@ class ObjectRec:
 
 
 	def __del__(self):
-		self.cap.release()
+		if hasattr(self, 'cap') and self.cap is not None:
+			self.cap.release()
 		cv2.destroyAllWindows()
 
+		
 
 
 	'''
@@ -85,11 +80,40 @@ class ObjectRec:
 		raw_value = self.__config[self.__name]['accepted_objects']
 		self.__accepted_objects = [item.strip() for item in raw_value.split(',')] # accepted_objects = ["person", "cup", etc.]
 		
+
+
 		''' Load range of acceptable detection quality '''
 		cmd = self.__config.getint(self.__name,'min_quality')
 		self.__range_detection_quality.append(cmd)
 		cmd = self.__config.getint(self.__name,'max_quality')
 		self.__range_detection_quality.append(cmd)
+
+
+		''' Load model paths'''
+		self.__labels_path = self.__config.get(self.__name,'labels_path')
+		self.__model_config_path = self.__config.get(self.__name,'model_config_path')	
+		self.__model_weights_path = self.__config.get(self.__name,'model_weights_path')
+
+
+	def __init_model_and_camera(self):
+		'''
+		Initializes the OpenCV model and camera using the config file paths 
+		'''
+		self.classNames = []
+
+		with open(self.__labels_path, 'rt') as f:
+			self.classNames = f.read().rstrip('\n').split('\n')
+		
+		self.net = cv2.dnn_DetectionModel(self.__model_weights_path, self.__model_config_path)
+		self.net.setInputSize(320, 320)
+		self.net.setInputScale(1.0 / 127.5)
+		self.net.setInputMean((127.5, 127.5, 127.5))
+		self.net.setInputSwapRB(True)
+		
+		self.cap = cv2.VideoCapture(self.__camera_index)
+		self.cap.set(3, self.__camera_width)
+		self.cap.set(4, self.__camera_height)
+
 
 
 	def __set_current_to_last_status(self):

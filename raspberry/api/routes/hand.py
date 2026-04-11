@@ -30,3 +30,9 @@ def set_position(position_id: int, request: Request):
 def manual_move(data: ManualMoveRequest, request: Request):
     controller = request.app.state.controller
     return controller.move_manual(data.command)
+
+
+@router.get("/positions")
+def get_positions(request: Request):
+    controller = request.app.state.controller
+    return controller.get_available_positions()

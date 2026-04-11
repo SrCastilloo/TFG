@@ -4,6 +4,10 @@ from typing import Any, Dict, Optional
 from core.state import SystemMode
 from hardware.handControl import HandControl
 from hardware.objectRec import ObjectRec
+from configparser import ConfigParser
+import re
+
+
 
 
 """
@@ -199,7 +203,51 @@ class HandSystemController:
             "message": "Orden manual enviada a la mano.",
             "command": command,
         }
+    
+    def get_available_positions(self) -> Dict[str, Any]:
+        """
+        Devuelve las posiciones predefinidas disponibles en el config.ini.
+        """
+        config_file = Path(self.config_path)
 
+        if not config_file.exists():
+            return {
+                "ok": False,
+                "message": f"No existe el fichero de configuración: {config_file}",
+                "positions": [],
+        }
+
+        config = ConfigParser()
+        read_files = config.read(config_file, encoding="utf-8")
+
+        if not read_files:
+            return {
+             "ok": False,
+              "message": f"No se pudo leer el fichero de configuración: {config_file}",
+             "positions": [],
+            }
+
+        if "positions" not in config.sections():
+            return {
+               "ok": False,
+               "message": f"Se ha leído el config.ini, pero no existe la sección 'positions'. Secciones encontradas: {config.sections()}",
+                "positions": [],
+            }
+
+        position_ids = set()
+
+        for key in config["positions"].keys():
+            match = re.match(r"p(\d+)_", key)
+            if match:
+                position_ids.add(int(match.group(1)))
+
+        sorted_positions = sorted(position_ids)
+
+        return {
+            "ok": True,
+            "positions": sorted_positions,
+            "count": len(sorted_positions),
+    }
     # -------------------------------------------------------------------------
     # CÁMARA
     # -------------------------------------------------------------------------
@@ -390,4 +438,23 @@ class HandSystemController:
         return {
             "ok": True,
             "message": "Sistema detenido y recursos liberados."
+        }
+    
+
+    # -------------------------------------------------------------------------
+    # ESTADO DEL SISTEMA
+    # -------------------------------------------------------------------------
+    def get_system_info(self) -> Dict[str,Any]:
+        """
+        Devuelve información general del sistema para depuración y para
+        la app
+        """
+        return{
+            "ok": True,
+            "simulation": self.simulation,
+            "mode": self.mode.value,
+            "config_path": self.config_path,
+            "last_position_mapped": self.last_position_mapped,
+            "hand_available": self.hand is not None,
+            "camera_available": self.object_rec is not None,
         }
