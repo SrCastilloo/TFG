@@ -328,3 +328,63 @@ No se está usando todavía en la capa nueva, pero sirve como feedback sonoro.
 Es una parte auxiliar del sistema, útil para mejorar experiencia de usuario.
 
 ---
+
+
+**11-04-2026**
+He añadido dos endpoints nuevos que me están sirviendo bastante para depuración y para preparar la futura app Android:
+
+- `GET /system/info`
+- `GET /hand/positions`
+
+### Endpoint `/system/info`
+
+Este endpoint me devuelve información general del sistema, por ejemplo:
+
+- si estoy en simulación o no
+- el modo actual
+- la ruta del `config.ini`
+- si la mano y la cámara están disponibles
+
+Esto me viene bien para saber rápidamente en qué estado está el backend.
+
+### Endpoint `/hand/positions`
+
+Este endpoint me devuelve las posiciones predefinidas de la mano que están guardadas en el `config.ini`.
+
+Ahora mismo me devuelve correctamente las posiciones del 0 al 9.
+
+---
+
+## Problema detectado y corregido con `config.ini`
+
+Durante el desarrollo me di cuenta de que el fichero `raspberry/config/config.ini` estaba vacío.
+
+Eso provocaba que algunas partes de la API no funcionaran correctamente, por ejemplo el endpoint `/hand/positions`, porque el sistema no encontraba la sección `[positions]`.
+
+Lo que hice fue copiar al `config.ini` el contenido heredado del TFG anterior, ya que ese fichero contiene configuraciones necesarias para varios subsistemas, como por ejemplo:
+
+- GPIO
+- speaker
+- RGB
+- EMG
+- sensores capacitivos
+- reconocimiento de voz
+- reconocimiento de objetos
+- control de la mano
+- valores mínimos y máximos
+- posiciones predefinidas
+
+Después de eso, el endpoint `/hand/positions` pasó a funcionar correctamente.
+
+---
+
+## Adaptación realizada sobre código heredado
+
+En general estoy intentando mantener separado mi código nuevo del código heredado del TFG anterior.
+
+Aun así, sí he realizado una adaptación concreta en `raspberry/hardware/objectRec.py`, porque tenía rutas absolutas metidas directamente en el código y eso hacía que dependiera de una estructura muy concreta de carpetas en la Raspberry anterior.
+
+Lo he dejado adaptado para que esa parte sea más configurable y no dependa de rutas fijas tan rígidas.
+
+---
+
