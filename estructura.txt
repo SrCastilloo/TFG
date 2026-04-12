@@ -1,0 +1,160 @@
+.
+├── android
+│   ├── app
+│   │   ├── app
+│   │   │   ├── build.gradle.kts
+│   │   │   ├── proguard-rules.pro
+│   │   │   └── src
+│   │   │       ├── androidTest
+│   │   │       │   └── java
+│   │   │       │       └── com
+│   │   │       │           └── example
+│   │   │       │               └── myapplication
+│   │   │       │                   └── ExampleInstrumentedTest.kt
+│   │   │       ├── main
+│   │   │       │   ├── AndroidManifest.xml
+│   │   │       │   ├── java
+│   │   │       │   │   └── com
+│   │   │       │   │       └── example
+│   │   │       │   │           └── myapplication
+│   │   │       │   │               ├── data
+│   │   │       │   │               │   ├── remote
+│   │   │       │   │               │   │   └── dto
+│   │   │       │   │               │   └── repository
+│   │   │       │   │               ├── MainActivity.kt
+│   │   │       │   │               └── ui
+│   │   │       │   │                   ├── screen
+│   │   │       │   │                   ├── state
+│   │   │       │   │                   ├── theme
+│   │   │       │   │                   │   ├── Color.kt
+│   │   │       │   │                   │   ├── Theme.kt
+│   │   │       │   │                   │   └── Type.kt
+│   │   │       │   │                   └── viewmodel
+│   │   │       │   └── res
+│   │   │       │       ├── drawable
+│   │   │       │       │   ├── ic_launcher_background.xml
+│   │   │       │       │   └── ic_launcher_foreground.xml
+│   │   │       │       ├── mipmap-anydpi-v26
+│   │   │       │       │   ├── ic_launcher_round.xml
+│   │   │       │       │   └── ic_launcher.xml
+│   │   │       │       ├── mipmap-hdpi
+│   │   │       │       │   ├── ic_launcher_round.webp
+│   │   │       │       │   └── ic_launcher.webp
+│   │   │       │       ├── mipmap-mdpi
+│   │   │       │       │   ├── ic_launcher_round.webp
+│   │   │       │       │   └── ic_launcher.webp
+│   │   │       │       ├── mipmap-xhdpi
+│   │   │       │       │   ├── ic_launcher_round.webp
+│   │   │       │       │   └── ic_launcher.webp
+│   │   │       │       ├── mipmap-xxhdpi
+│   │   │       │       │   ├── ic_launcher_round.webp
+│   │   │       │       │   └── ic_launcher.webp
+│   │   │       │       ├── mipmap-xxxhdpi
+│   │   │       │       │   ├── ic_launcher_round.webp
+│   │   │       │       │   └── ic_launcher.webp
+│   │   │       │       ├── values
+│   │   │       │       │   ├── colors.xml
+│   │   │       │       │   ├── strings.xml
+│   │   │       │       │   └── themes.xml
+│   │   │       │       └── xml
+│   │   │       │           ├── backup_rules.xml
+│   │   │       │           └── data_extraction_rules.xml
+│   │   │       └── test
+│   │   │           └── java
+│   │   │               └── com
+│   │   │                   └── example
+│   │   │                       └── myapplication
+│   │   │                           └── ExampleUnitTest.kt
+│   │   ├── build.gradle.kts
+│   │   ├── gradle
+│   │   │   ├── libs.versions.toml
+│   │   │   └── wrapper
+│   │   │       ├── gradle-wrapper.jar
+│   │   │       └── gradle-wrapper.properties
+│   │   ├── gradle.properties
+│   │   ├── gradlew
+│   │   ├── gradlew.bat
+│   │   ├── local.properties
+│   │   └── settings.gradle.kts
+│   ├── data
+│   ├── domain
+│   ├── README.md
+│   └── ui
+├── docs
+│   ├── api.md
+│   ├── arquitectura.md
+│   ├── decisiones.md
+│   └── estado_actual_tfg.md
+├── estructura.txt
+├── raspberry
+│   ├── api
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   └── __init__.cpython-312.pyc
+│   │   ├── routes
+│   │   │   ├── camera.py
+│   │   │   ├── hand.py
+│   │   │   ├── health.py
+│   │   │   ├── __init__.py
+│   │   │   ├── modes.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── camera.cpython-312.pyc
+│   │   │   │   ├── hand.cpython-312.pyc
+│   │   │   │   ├── health.cpython-312.pyc
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── modes.cpython-312.pyc
+│   │   │   │   ├── status.cpython-312.pyc
+│   │   │   │   └── system.cpython-312.pyc
+│   │   │   ├── status.py
+│   │   │   └── system.py
+│   │   └── schemas
+│   │       ├── camera.py
+│   │       ├── hand.py
+│   │       └── mode.py
+│   ├── assets
+│   │   └── audio
+│   │       ├── cameraMode.mp3
+│   │       ├── handMode.mp3
+│   │       └── voiceMode.mp3
+│   ├── config
+│   │   └── config.ini
+│   ├── core
+│   │   ├── controller.py
+│   │   ├── __init__.py
+│   │   ├── mapper.py
+│   │   ├── __pycache__
+│   │   │   ├── controller.cpython-312.pyc
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   └── state.cpython-312.pyc
+│   │   └── state.py
+│   ├── hardware
+│   │   ├── capacitiveControl.py
+│   │   ├── cmdDevice.py
+│   │   ├── emgDevice.py
+│   │   ├── handControl.py
+│   │   ├── i2cdevice.py
+│   │   ├── __init__.py
+│   │   ├── objectRec.py
+│   │   ├── __pycache__
+│   │   │   ├── handControl.cpython-312.pyc
+│   │   │   ├── i2cdevice.cpython-312.pyc
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   └── objectRec.cpython-312.pyc
+│   │   ├── rgbControl.py
+│   │   └── speakerControl.py
+│   ├── legacy
+│   │   ├── control.py
+│   │   └── controlV3_1.py
+│   ├── main.py
+│   ├── __pycache__
+│   │   └── main.cpython-312.pyc
+│   ├── requirements.txt
+│   └── services
+│       ├── camera_service.py
+│       ├── emg_service.py
+│       ├── hand_service.py
+│       ├── __init__.py
+│       └── speech_service.py
+└── README.md
+
+61 directories, 97 files

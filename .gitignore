@@ -6,3 +6,55 @@ venv/
 .idea/
 .vscode/
 .DS_Store
+
+# -------------------------
+# Android / Gradle
+# -------------------------
+.gradle/
+**/build/
+**/captures/
+**/output/
+local.properties
+
+# APK / AAB
+*.apk
+*.aab
+*.ap_
+
+# Logs
+*.log
+
+# Archivos temporales de Android Studio / IntelliJ
+*.iml
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/workspace.xml
+.idea/shelf/
+.idea/deploymentTargetDropDown.xml
+
+# Kotlin / Java
+*.class
+
+# NDK / CMake
+.cxx/
+externalNativeBuild/
+
+# Keystores / firmas
+*.jks
+*.keystore
+*.p12
+
+# -------------------------
+# Python extra
+# -------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# -------------------------
+# Linux / sistema
+# -------------------------
+*~
