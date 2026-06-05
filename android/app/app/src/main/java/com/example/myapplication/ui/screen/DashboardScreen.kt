@@ -44,7 +44,8 @@ data class DashboardItem(
 fun DashboardScreen(
     onGoToStatus: () -> Unit,
     onGoToHand: () -> Unit,
-    onGoToCamera: () -> Unit
+    onGoToCamera: () -> Unit,
+    onGoToAssistant: () -> Unit
 ) {
     val items = listOf(
         DashboardItem(
@@ -67,7 +68,16 @@ fun DashboardScreen(
             emoji = "📷",
             colors = listOf(Color(0xFF8B5CF6), Color(0xFF7C3AED)),
             onClick = onGoToCamera
+        ),
+        DashboardItem(
+            title = "Asistente",
+            subtitle = "Preguntas sobre la app y el sistema",
+            emoji = "🤖",
+            colors = listOf(Color(0xFF06B6D4), Color(0xFF8B5CF6)),
+            onClick = onGoToAssistant
         )
+
+
     )
 
     Box(

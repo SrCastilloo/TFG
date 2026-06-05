@@ -7,6 +7,10 @@ from api.routes.modes import router as modes_router
 from api.routes.hand import router as hand_router
 from api.routes.camera import router as camera_router
 from api.routes.system import router as system_router
+from api.routes.assistant import router as assistant_router
+
+
+
 
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "config" / "config.ini"
@@ -35,3 +39,4 @@ app.include_router(modes_router, prefix="/modes", tags=["Modes"])
 app.include_router(hand_router, prefix="/hand", tags=["Hand"])
 app.include_router(camera_router, prefix="/camera", tags=["Camera"])
 app.include_router(system_router, prefix="/system", tags=["System"])
+app.include_router(assistant_router, prefix="/assistant", tags=["Assistant"])

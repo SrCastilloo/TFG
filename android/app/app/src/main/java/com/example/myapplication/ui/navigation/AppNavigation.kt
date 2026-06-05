@@ -31,6 +31,8 @@ import com.example.myapplication.ui.screen.DashboardScreen
 import com.example.myapplication.ui.screen.HandScreen
 import com.example.myapplication.ui.screen.StatusScreen
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.SmartToy
+import com.example.myapplication.ui.screen.AssistantScreen
 data class BottomNavItem(
     val route: String,
     val label: String,
@@ -61,6 +63,11 @@ fun AppNavigation() {
             route = AppRoutes.STATUS,
             label = "Estado",
             icon = { Icon(Icons.Default.Info, contentDescription = "Estado") }
+        ),
+        BottomNavItem(
+            route = AppRoutes.ASSISTANT,
+            label = "Asistente",
+            icon = { Icon(Icons.Default.SmartToy, contentDescription = "Asistente") }
         )
     )
 
@@ -107,7 +114,8 @@ fun AppNavigation() {
                     DashboardScreen(
                         onGoToStatus = { navController.navigate(AppRoutes.STATUS) },
                         onGoToHand = { navController.navigate(AppRoutes.HAND) },
-                        onGoToCamera = { navController.navigate(AppRoutes.CAMERA) }
+                        onGoToCamera = { navController.navigate(AppRoutes.CAMERA) },
+                        onGoToAssistant = { navController.navigate(AppRoutes.ASSISTANT) }
                     )
                 }
 
@@ -125,6 +133,12 @@ fun AppNavigation() {
 
                 composable(AppRoutes.CAMERA) {
                     CameraScreen(
+                        onBack = { navController.navigate(AppRoutes.DASHBOARD) }
+                    )
+                }
+
+                composable(AppRoutes.ASSISTANT) {
+                    AssistantScreen(
                         onBack = { navController.navigate(AppRoutes.DASHBOARD) }
                     )
                 }

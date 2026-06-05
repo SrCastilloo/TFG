@@ -2,8 +2,6 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from core.state import SystemMode
-from hardware.handControl import HandControl
-from hardware.objectRec import ObjectRec
 from configparser import ConfigParser
 import re
 
@@ -64,16 +62,18 @@ class HandSystemController:
         self.last_position_mapped: Optional[int] = None
         self.simulation = simulation
 
+        # Modo simulación: no inicializamos los subsistemas reales, pero sí creamos
+        # los atributos para evitar errores al llamar a métodos
+        self.hand = None
+        self.object_rec = None
 
         if not self.simulation:
             # Subsistemas mínimos para arrancar el backend nuevo
+            from hardware.handControl import HandControl
+            from hardware.objectRec import ObjectRec
+
             self.hand = HandControl(self.config_path) # Inicializa la mano con el config.ini
             self.object_rec = ObjectRec("object_rec", self.config_path) # Inicializa la cámara con el config.ini
-        
-        else:
-            # Modo simulación: no inicializamos los subsistemas reales, pero sí creamos objetos simulados para evitar errores al llamar a métodos
-            self.hand = None
-            self.object_rec = None
     # -------------------------------------------------------------------------
     # MODOS
     # -------------------------------------------------------------------------

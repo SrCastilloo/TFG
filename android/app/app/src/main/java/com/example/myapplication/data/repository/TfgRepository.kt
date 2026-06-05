@@ -5,6 +5,8 @@ import com.example.myapplication.data.remote.dto.BasicResponseDto
 import com.example.myapplication.data.remote.dto.HandPositionsDto
 import com.example.myapplication.data.remote.dto.SystemInfoDto
 import com.example.myapplication.data.remote.dto.CameraDetectionDto
+import com.example.myapplication.data.remote.dto.AssistantChatRequestDto
+import com.example.myapplication.data.remote.dto.AssistantChatResponseDto
 
 class TfgRepository(
     private val apiService: TfgApiService
@@ -47,5 +49,11 @@ class TfgRepository(
 
     suspend fun detectAndMove(): CameraDetectionDto {
         return apiService.detectAndMove()
+    }
+
+    suspend fun chatWithAssistant(message: String): AssistantChatResponseDto {
+        return apiService.chatWithAssistant(
+            AssistantChatRequestDto(message = message)
+        )
     }
 }
