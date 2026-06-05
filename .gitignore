@@ -58,3 +58,5 @@ externalNativeBuild/
 # Linux / sistema
 # -------------------------
 *~
+
+raspberry/.env
