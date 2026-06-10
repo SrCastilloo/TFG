@@ -106,31 +106,26 @@ class HandSystemController:
     # MANO
     # -------------------------------------------------------------------------
 
-    def open_hand(self) -> Dict[str, Any]: # Abre la mano usando el mismo esquema que el código legado
+    def open_hand(self) -> Dict[str, Any]:
         """
-        Abre la mano usando el mismo esquema que el código legado.
+        Abre la mano moviéndola a la posición 0 del config.ini.
         """
-        command = {
-            "ring": "close",
-            "middle": "open",
-            "index": "open",
-            "thumb0": "open",
-            "thumb1": "open",
-        }
-        
         if self.simulation:
-            return {
-                "ok": True,
-                "message": "Simulación: orden de apertura enviada a la mano.",
-                "command": command,
-            }
-
-        self.hand.move_open_close(command)
-        return {
+         return {
             "ok": True,
-            "message": "Orden de apertura enviada a la mano.",
-            "command": command,
+            "message": "Simulación: orden enviada para abrir la mano en la posición 0.",
+            "position_id": 0,
         }
+
+        self.last_position_mapped = 0
+        self.hand.move_position(0)
+
+        return {
+        "ok": True,
+        "message": "Orden enviada para abrir la mano en la posición 0.",
+        "position_id": 0,
+        }
+
 
     def stop_hand(self) -> Dict[str, Any]:
         """

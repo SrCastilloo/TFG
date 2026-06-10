@@ -7,7 +7,8 @@ from api.routes.modes import router as modes_router
 from api.routes.hand import router as hand_router
 from api.routes.camera import router as camera_router
 from api.routes.system import router as system_router
-from api.routes.assistant import router as assistant_router
+# from api.routes.assistant import router as assistant_router # esta linea la he tenido
+# que comentar junto con el import de abajo
 
 
 
@@ -22,7 +23,7 @@ app = FastAPI(title = "Raspberry Pi Hand Controller API", version="1.0.0")
 
 # Crear una instancia global del controlador para que las rutas puedan acceder a él
 app.state.controller = HandSystemController(config_path=str(CONFIG_PATH),
-                                            simulation = True) 
+                                            simulation = True) # cuando se pruebe en entorno real; simulation = True
 
 
 @app.get("/") # Ruta raíz para verificar que la API está funcionando
@@ -39,4 +40,5 @@ app.include_router(modes_router, prefix="/modes", tags=["Modes"])
 app.include_router(hand_router, prefix="/hand", tags=["Hand"])
 app.include_router(camera_router, prefix="/camera", tags=["Camera"])
 app.include_router(system_router, prefix="/system", tags=["System"])
-app.include_router(assistant_router, prefix="/assistant", tags=["Assistant"])
+# app.include_router(assistant_router, prefix="/assistant", tags=["Assistant"])
+# este ultimo import lo he tenido que comentar en la raspberry

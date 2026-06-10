@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
+from typing import Dict
+
 
 router = APIRouter()
 
@@ -7,7 +9,7 @@ router = APIRouter()
 #Exponemos por API las acciones básicas de la mano
 
 class ManualMoveRequest(BaseModel):
-    command: dict[str,str] 
+    command: Dict[str,str] 
 
 @router.post("/open")
 def open_hand(request: Request):

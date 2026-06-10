@@ -15,7 +15,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 class HandViewModel : ViewModel() {
 
     private val apiService = Retrofit.Builder()
-        .baseUrl("http://192.168.1.143:8000/")
+        .baseUrl("http://10.42.0.206:8000/")
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(TfgApiService::class.java)
