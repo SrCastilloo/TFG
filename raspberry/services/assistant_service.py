@@ -4,8 +4,9 @@ from openai import OpenAI
 
 
 class AssistantService:
-    def __init__(self) -> None:
+    def __init__(self):
         load_dotenv()
+
         api_key = os.getenv("OPENAI_API_KEY")
 
         if not api_key:
@@ -13,48 +14,40 @@ class AssistantService:
 
         self.client = OpenAI(api_key=api_key)
 
-    def build_context(self, controller) -> str:
-        system_info = controller.get_status()
-        positions = controller.get_available_positions()
+    def ask(self, controller, message):
+        try:
+            status = controller.get_status()
+        except Exception as e:
+            status = {
+                "error": "No se pudo obtener el estado del controlador",
+                "detail": str(e)
+            }
 
-        return f"""
-Eres el asistente de una app Android para controlar una mano robótica.
+        system_prompt = """
+Eres el asistente de una mano robótica controlada desde una Raspberry Pi.
 
-Tu trabajo es responder de forma clara, breve y útil preguntas sobre:
-- el funcionamiento de la app
-- los modos del sistema
-- el estado actual del backend
-- las posiciones disponibles
-- si el sistema está en simulación o en modo real
+Tu función es ayudar al usuario a manejar y entender el sistema de la mano robótica.
+Responde siempre en español, de forma clara y breve.
+
+Puedes explicar el estado de la mano, los modos disponibles y qué acciones puede hacer el usuario.
+No inventes datos del hardware. Si no sabes algo, dilo claramente.
 
 Estado actual del sistema:
-{system_info}
-
-Posiciones disponibles:
-{positions}
-
-Reglas:
-- Si el sistema está en simulación, dilo claramente.
-- No inventes funciones que la app no tenga.
-- Si preguntan algo que no sabes, dilo con honestidad.
-- Responde siempre en español.
-"""
-
-    def ask(self, controller, user_message: str) -> str:
-        context = self.build_context(controller)
+{}
+""".format(status)
 
         response = self.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-            {
-            "role": "system",
-            "content": system_prompt,
-            },
-            {
-            "role": "user",
-            "content": message,
-            },
-        ],
-    )
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": message
+                }
+            ]
+        )
 
         return response.choices[0].message.content
