@@ -16,7 +16,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 class AssistantViewModel : ViewModel() {
 
     private val apiService = Retrofit.Builder()
-        .baseUrl("http://192.168.1.134:8000/")
+        .baseUrl("http://192.168.100.203:8000/")
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(TfgApiService::class.java)
