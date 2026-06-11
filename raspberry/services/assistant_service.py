@@ -43,10 +43,18 @@ Reglas:
     def ask(self, controller, user_message: str) -> str:
         context = self.build_context(controller)
 
-        response = self.client.responses.create(
-            model="gpt-5.4-mini",
-            instructions=context,
-            input=user_message
-        )
+        response = self.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+            {
+            "role": "system",
+            "content": system_prompt,
+            },
+            {
+            "role": "user",
+            "content": message,
+            },
+        ],
+    )
 
-        return response.output_text
+        return response.choices[0].message.content
