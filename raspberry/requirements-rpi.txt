@@ -1,0 +1,4 @@
+fastapi
+uvicorn
+smbus2
+openai==1.39.0
