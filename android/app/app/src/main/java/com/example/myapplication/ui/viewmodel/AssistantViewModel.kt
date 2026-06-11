@@ -2,6 +2,7 @@ package com.example.myapplication.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.myapplication.data.remote.ApiClient
 import com.example.myapplication.data.remote.TfgApiService
 import com.example.myapplication.data.repository.TfgRepository
 import com.example.myapplication.ui.state.AssistantUiState
@@ -15,12 +16,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 class AssistantViewModel : ViewModel() {
 
-    private val apiService = Retrofit.Builder()
-        .baseUrl("http://192.168.100.203:8000/")
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-        .create(TfgApiService::class.java)
-
+    private val apiService = ApiClient.apiService
     private val repository = TfgRepository(apiService)
 
     private val _uiState = MutableStateFlow(AssistantUiState())
