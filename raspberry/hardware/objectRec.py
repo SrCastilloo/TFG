@@ -179,7 +179,7 @@ class ObjectRec:
 			with self.__dnn_lock:
 				_, objectInfo = self.getObjects(
 					img,
-					self.__min_detection_quality / 100.0,
+					0.45,
 					0.2,
 					False,
 					objects= self.__accepted_objects
