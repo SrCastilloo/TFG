@@ -5,7 +5,9 @@ from core.state import SystemMode
 from configparser import ConfigParser
 import re
 
-
+import time
+import RPi.GPIO as GPIO
+from hardware.cmdDevice import CmdDevice
 
 
 """
@@ -56,6 +58,17 @@ class HandSystemController:
         "keyboard": 8,
     }
 
+
+    # Mapeo inicial voz -> posición predefinida de la mano
+    VOICE_POSITION_MAPPING: Dict[str, int] = {
+    "0x11": 1,  # uno
+    "0x19": 2,  # dos
+    "0x1d": 3,  # tres
+    "0x1f": 4,  # cuatro
+    "0x1": 5,   # cinco
+    "0x0": 0    # ruido / sin comando útil
+    }
+
     def __init__(self, config_path: str = "config/config.ini", simulation: bool = False) -> None:
         self.config_path = str(Path(config_path))
         self.mode: SystemMode = SystemMode.INIT
@@ -74,6 +87,32 @@ class HandSystemController:
 
             self.hand = HandControl(self.config_path) # Inicializa la mano con el config.ini
             self.object_rec = ObjectRec("object_rec", self.config_path) # Inicializa la cámara con el config.ini
+
+
+
+            # Subsistema de voz
+            self.speech = CmdDevice("cmd_speech", self.config_path)
+
+            config = ConfigParser()
+            config.read(self.config_path)
+
+            self.pin_wkup_speech = config.getint("GPIO", "pin_wkup_speech")
+            self.pin_int_speech = config.getint("GPIO", "pin_int_speech")
+
+            GPIO.setwarnings(False)
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(self.pin_wkup_speech, GPIO.OUT, initial=GPIO.LOW)
+            GPIO.setup(self.pin_int_speech, GPIO.IN)
+
+        else:
+            self.hand = None
+            self.object_rec = None
+            self.speech = None
+            self.pin_wkup_speech = None
+            self.pin_int_speech = None
+
+
+
     # -------------------------------------------------------------------------
     # MODOS
     # -------------------------------------------------------------------------
@@ -465,3 +504,111 @@ class HandSystemController:
             return None
 
         return self.object_rec.get_current_frame_jpeg(draw=draw)
+
+
+    # -------------------------------------------------------------------------
+    # MODO VOICE PARA MOVER LA MANO
+    # -------------------------------------------------------------------------
+
+    def wake_up_speech(self) -> None:
+        """
+        Despierta el microcontrolador de voz mediante el pin GPIO configurado
+
+        """
+        if self.simulation or self.speech is None or self.pin_wkup_speech is None:
+            return
+        
+        GPIO.output(self.pin_wkup_speech, GPIO.HIGH)
+        time.sleep(0.05)
+        GPIO.output(self.pin_wkup_speech, GPIO.LOW)
+
+
+
+    def read_voice_command(self) -> Dict[str, Any]:
+        """
+        Despierta el módulo de voz y lee el último comando reconocido.
+        """
+        if self.simulation:
+            return {
+            "ok": True,
+            "mode": self.mode.value,
+            "command": None,
+            "detection_quality": None,
+            "message": "Simulación: lectura de voz simulada."
+            }
+
+        if self.speech is None:
+            return {
+            "ok": False,
+            "message": "El subsistema de voz no está inicializado."
+        }
+
+        try:
+            self.wake_up_speech()
+            time.sleep(0.2)
+            self.speech.update()
+
+            status = self.speech.get_status()
+            command = status.get("command")
+            detection_quality = status.get("detection_quality")
+
+            return {
+            "ok": True,
+            "mode": self.mode.value,
+            "command": command,
+            "detection_quality": detection_quality,
+            "message": "Comando de voz leído correctamente."
+            }
+        except Exception as e:
+            return {
+            "ok": False,
+            "message": f"Error al leer voz: {str(e)}"
+        }
+
+
+
+    def execute_voice_command(self) -> Dict[str, Any]:
+        """
+        Lee un comando de voz y, si está mapeado, mueve la mano a la posición correspondiente.
+        """
+        result = self.read_voice_command()
+
+        if not result.get("ok"):
+            return result
+
+        command = result.get("command")
+
+        if command is None:
+            return {
+            "ok": False,
+            "command": None,
+            "message": "No se recibió ningún comando de voz."
+        }
+
+        position_id = self.VOICE_POSITION_MAPPING.get(command)
+
+        if position_id is None:
+            return {
+            "ok": False,
+            "command": command,
+            "message": f"El comando de voz {command} no está mapeado a ninguna posición."
+        }
+
+        self.last_position_mapped = position_id
+
+        if self.simulation:
+            return {
+            "ok": True,
+            "command": command,
+            "position_id": position_id,
+            "message": f"Simulación: comando de voz {command} mapeado a posición {position_id}."
+            }
+
+        self.hand.move_position(position_id)
+
+        return {
+        "ok": True,
+        "command": command,
+        "position_id": position_id,
+        "message": f"Comando de voz {command} ejecutado. Mano movida a posición {position_id}."
+        }
