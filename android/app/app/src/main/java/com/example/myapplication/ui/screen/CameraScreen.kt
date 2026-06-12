@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -25,17 +24,25 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import com.example.myapplication.data.remote.ApiConfig
 import com.example.myapplication.ui.common.getHandPositionTitle
 import com.example.myapplication.ui.viewmodel.CameraViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun CameraScreen(
@@ -72,13 +79,24 @@ fun CameraScreen(
             item {
                 TopActionRow(
                     onBack = onBack,
-                    onRefresh = { /* aquí no hace falta recargar por ahora */ },
+                    onRefresh = { },
                     refreshEnabled = false
                 )
             }
 
             item {
                 HeroCameraCard()
+            }
+
+            item {
+                SectionTitle(
+                    title = "Vista de la cámara",
+                    subtitle = "Imagen actual capturada por la Raspberry"
+                )
+            }
+
+            item {
+                CameraPreviewCard()
             }
 
             if (uiState.error != null) {
@@ -142,7 +160,7 @@ fun CameraScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
                     color = Color(0xFF0B132B).copy(alpha = 0.82f)
                 ) {
                     Row(
@@ -168,6 +186,39 @@ fun CameraScreen(
 }
 
 @Composable
+private fun CameraPreviewCard() {
+    var refreshKey by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            refreshKey = System.currentTimeMillis()
+            delay(700)
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF0F1B33)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            AsyncImage(
+                model = "${ApiConfig.BASE_URL}camera/frame?draw=true&t=$refreshKey",
+                contentDescription = "Vista actual de la cámara",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp),
+                contentScale = ContentScale.Crop
+            )
+        }
+    }
+}
+
+@Composable
 private fun TopActionRow(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
@@ -178,7 +229,7 @@ private fun TopActionRow(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Surface(
-            shape = RoundedCornerShape(999.dp),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
             color = Color.White.copy(alpha = 0.14f),
             onClick = onBack
         ) {
@@ -207,7 +258,7 @@ private fun TopActionRow(
 private fun HeroCameraCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(
             topStart = 30.dp,
             topEnd = 22.dp,
             bottomEnd = 30.dp,
@@ -264,7 +315,7 @@ private fun FeedbackCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = background)
     ) {
         Column(
@@ -290,7 +341,7 @@ private fun FeedbackCard(
 private fun QuickGuideCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFFFFFBF5)
         )
@@ -328,7 +379,7 @@ private fun GuideStep(
             modifier = Modifier
                 .background(
                     color = Color(0xFFF3E8FF),
-                    shape = RoundedCornerShape(999.dp)
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp)
                 )
                 .padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
@@ -358,7 +409,7 @@ private fun CameraActionsCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(
             topStart = 28.dp,
             topEnd = 18.dp,
             bottomEnd = 28.dp,
@@ -420,7 +471,7 @@ private fun DetectionResultCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFF0F1B33)
         )
@@ -465,7 +516,7 @@ private fun ResultInfoCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.White.copy(alpha = 0.06f)
         )
@@ -514,7 +565,7 @@ private fun FriendlyActionButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
             contentColor = Color.White,
@@ -532,7 +583,7 @@ private fun FriendlyActionButton(
 @Composable
 private fun LightPill(text: String) {
     Surface(
-        shape = RoundedCornerShape(999.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
         color = Color.White.copy(alpha = 0.18f)
     ) {
         Text(

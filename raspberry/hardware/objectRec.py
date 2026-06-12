@@ -11,7 +11,7 @@ class ObjectRec:
 		Version:	2.0
 		Author:		Práxedes Neira
 	'''
-
+	import threading
 	def __init__(self, name, conf_file) -> None:
 		'''
 			Init of the class ObjectRec
@@ -20,7 +20,7 @@ class ObjectRec:
 		'''
 
 		self.__name = name
-
+		self.__frame_lock = threading.Lock()
 		self.__accepted_objects = [] 
 		self.__range_detection_quality = [] # Range of acceptable detection quality
 		self.__status = {"object": None, "detection_quality": None}
@@ -159,9 +159,10 @@ class ObjectRec:
 		'''
 		while self.__running:
 			# Read various frames without processing, to discard the first ones and get the image updated and not with the previous image
-			for _ in range(5):
-				self.cap.read()
-			success, img = self.cap.read()
+			with self.__frame_lock:
+				for _ in range(5):
+					self.cap.read()
+				success, img = self.cap.read()
 			if success:
 				result, objectInfo = self.getObjects(img, 0.45, 0.2, False, objects=self.__accepted_objects)
 				if objectInfo:
@@ -341,6 +342,40 @@ class ObjectRec:
 			print("No object detected.")
 
 
+
+	#### Methods to show the current image on the screen ####
+	def get_current_frame(self, draw=False):
+		"""
+		Lee un frame actual de la cámara.
+		Si draw=True, dibuja las detecciones aceptadas sobre la imagen.
+		"""
+		with self.__frame_lock:
+			for _ in range(2):
+				self.cap.read()
+			success, img = self.cap.read()
+
+		if not success:
+			return None
+
+		if draw:
+			img, _ = self.getObjects(img, 0.45, 0.2, True, objects=self.__accepted_objects)
+
+		return img
+
+
+	def get_current_frame_jpeg(self, draw=False):
+		"""
+		Devuelve el frame actual codificado en JPEG.
+		"""
+		img = self.get_current_frame(draw=draw)
+		if img is None:
+			return None
+
+		ok, buffer = cv2.imencode(".jpg", img)
+		if not ok:
+			return None
+
+		return buffer.tobytes()
 
 ''' 
 	Testing area

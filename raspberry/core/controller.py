@@ -453,3 +453,15 @@ class HandSystemController:
             "hand_available": self.hand is not None,
             "camera_available": self.object_rec is not None,
         }
+    
+    # -------------------------------------------------------------------------
+    # OBTENER FRAME DE CÁMARA PARA MOSTRAR EN PANTALLA
+    # -------------------------------------------------------------------------
+    def get_camera_frame(self, draw: bool = False):
+        """
+        Devuelve un frame JPEG actual de la cámara.
+        """
+        if self.simulation or self.object_rec is None:
+            return None
+
+        return self.object_rec.get_current_frame_jpeg(draw=draw)
