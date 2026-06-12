@@ -397,6 +397,17 @@ class ObjectRec:
 
 		return img
 
+	def get_current_frame_jpeg(self, draw=False):
+
+		img = self.get_current_frame(draw=draw)
+		if img is None:
+			return None
+
+		ok, buffer = cv2.imencode(".jpg", img)
+		if not ok:
+			return None
+
+		return buffer.tobytes()
 
 
 
