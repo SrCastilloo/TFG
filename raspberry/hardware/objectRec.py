@@ -21,6 +21,7 @@ class ObjectRec:
 
 		self.__name = name
 		self.__frame_lock = threading.Lock()
+		self.__dnn_lock = threading.Lock()
 		self.__accepted_objects = [] 
 		self.__range_detection_quality = [] # Range of acceptable detection quality
 		self.__status = {"object": None, "detection_quality": None}
@@ -153,30 +154,54 @@ class ObjectRec:
 		return img, objectInfo
 	
 
+	
+
 	def update_status(self):
+		 
 		'''
-			Requests information from the camera and updates the status of the object recognition
+        Requests information from the camera and updates the status of the object recognition
 		'''
+
 		while self.__running:
-			# Read various frames without processing, to discard the first ones and get the image updated and not with the previous image
 			with self.__frame_lock:
 				for _ in range(5):
 					self.cap.read()
-				success, img = self.cap.read()
-			if success:
-				result, objectInfo = self.getObjects(img, 0.45, 0.2, False, objects=self.__accepted_objects)
-				if objectInfo:
-					objectInfo.sort(key=lambda x: x[2], reverse=True)
-					self.__set_current_to_last_status()
-					self.__status["object"] = objectInfo[0][1] 
-					self.__status["detection_quality"] = objectInfo[0][2] * 100
-				else:
-					self.__set_current_to_last_status()
-					self.__status = {"object": None, "detection_quality": None}
-				#cv2.imshow("Output", img)
-				#cv2.waitKey(1)
+			success , img = self.cap.read()
+
+
+			if not success:
+				time.sleep(0.1)
+				continue
+
+			# Proteger la red DNN para que no se ejecute a la vez
+        	# desde el preview y desde la detección
+
+			with self.__dnn_lock:
+				_, objectInfo = self.getObjects(
+					img,
+					self.__min_detection_quality / 100.0,
+					0.2,
+					False,
+					objects= self.__accepted_objects
+				)
+			
+			self.__set_current_to_last_status 
+
+			if objectInfo:
+				objectInfo.sort(key=lambda x: x[2], reverse= True)
+				self.__status["object"] = objectInfo[0][1]
+				self.__status["detection_quality"] = objectInfo[0][2] * 100
+			
 			else:
-				break
+				self.__status = {"object": None, "detection_quality": None}
+
+
+
+
+
+
+
+
 
 
 	def print_status(self):
@@ -343,39 +368,42 @@ class ObjectRec:
 
 
 
-	#### Methods to show the current image on the screen ####
+
 	def get_current_frame(self, draw=False):
+		
 		"""
-		Lee un frame actual de la cámara.
-		Si draw=True, dibuja las detecciones aceptadas sobre la imagen.
-		"""
+    	Lee un frame actual de la cámara.
+    	Si draw=True, dibuja las detecciones aceptadas sobre la imagen.
+    	"""
+
 		with self.__frame_lock:
 			for _ in range(2):
 				self.cap.read()
-			success, img = self.cap.read()
+			success , img = self.cap.read()
 
+		
 		if not success:
 			return None
-
+		
 		if draw:
-			img, _ = self.getObjects(img, 0.45, 0.2, True, objects=self.__accepted_objects)
+			with self.__dnn_lock:
+				img, _ = self.getObjects(
+					img,
+					0.45,
+					0.2,
+					True,
+					objects= self.__accepted_objects
+				)
 
 		return img
 
 
-	def get_current_frame_jpeg(self, draw=False):
-		"""
-		Devuelve el frame actual codificado en JPEG.
-		"""
-		img = self.get_current_frame(draw=draw)
-		if img is None:
-			return None
 
-		ok, buffer = cv2.imencode(".jpg", img)
-		if not ok:
-			return None
 
-		return buffer.tobytes()
+
+
+
+
 
 ''' 
 	Testing area
