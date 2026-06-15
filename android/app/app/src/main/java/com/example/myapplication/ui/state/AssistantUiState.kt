@@ -9,5 +9,15 @@ data class AssistantUiState(
         )
     ),
     val currentInput: String = "",
-    val error: String? = null
+    val error: String? = null,
+
+    // Estado del control por voz
+    val isVoiceLoading: Boolean = false,
+    val voiceCommand: String? = null,
+    val voiceCommandName: String? = null,
+    val voiceQuality: Int? = null,
+    val voiceMoved: Boolean = false,
+    val voicePositionId: Int? = null,
+    val voiceMessage: String? = null,
+    val voiceError: String? = null
 )

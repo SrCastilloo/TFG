@@ -9,6 +9,8 @@ import retrofit2.http.Path
 import com.example.myapplication.data.remote.dto.CameraDetectionDto
 import com.example.myapplication.data.remote.dto.AssistantChatRequestDto
 import com.example.myapplication.data.remote.dto.AssistantChatResponseDto
+import com.example.myapplication.data.remote.dto.VoiceDetectResponse
+import com.example.myapplication.data.remote.dto.VoiceMoveResponse
 import retrofit2.http.Body
 
 interface TfgApiService {
@@ -49,4 +51,10 @@ interface TfgApiService {
     suspend fun chatWithAssistant(
         @Body request: AssistantChatRequestDto
     ): AssistantChatResponseDto
+
+    @POST("/voice/detect")
+    suspend fun detectVoice(): VoiceDetectResponse
+
+    @POST("/voice/detect-and-move")
+    suspend fun detectVoiceAndMove(): VoiceMoveResponse
 }

@@ -24,9 +24,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,7 +41,6 @@ import coil.compose.AsyncImage
 import com.example.myapplication.data.remote.ApiConfig
 import com.example.myapplication.ui.common.getHandPositionTitle
 import com.example.myapplication.ui.viewmodel.CameraViewModel
-import kotlinx.coroutines.delay
 
 @Composable
 fun CameraScreen(
@@ -50,6 +48,7 @@ fun CameraScreen(
     viewModel: CameraViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var lastFrameRequestKey by remember { mutableStateOf<Long?>(null) }
 
     Box(
         modifier = Modifier
@@ -91,12 +90,14 @@ fun CameraScreen(
             item {
                 SectionTitle(
                     title = "Vista de la cámara",
-                    subtitle = "Imagen actual capturada por la Raspberry"
+                    subtitle = "La imagen solo se actualiza al pulsar una acción de detección"
                 )
             }
 
             item {
-                CameraPreviewCard()
+                CameraPreviewCard(
+                    frameRequestKey = lastFrameRequestKey
+                )
             }
 
             if (uiState.error != null) {
@@ -133,8 +134,14 @@ fun CameraScreen(
             item {
                 CameraActionsCard(
                     isLoading = uiState.isLoading,
-                    onDetect = { viewModel.detectObject() },
-                    onDetectAndMove = { viewModel.detectAndMove() }
+                    onDetect = {
+                        viewModel.detectObject()
+                        lastFrameRequestKey = System.currentTimeMillis()
+                    },
+                    onDetectAndMove = {
+                        viewModel.detectAndMove()
+                        lastFrameRequestKey = System.currentTimeMillis()
+                    }
                 )
             }
 
@@ -186,16 +193,9 @@ fun CameraScreen(
 }
 
 @Composable
-private fun CameraPreviewCard() {
-    var refreshKey by remember { mutableLongStateOf(System.currentTimeMillis()) }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            refreshKey = System.currentTimeMillis()
-            delay(700)
-        }
-    }
-
+private fun CameraPreviewCard(
+    frameRequestKey: Long?
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
@@ -206,14 +206,49 @@ private fun CameraPreviewCard() {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            AsyncImage(
-                model = "${ApiConfig.BASE_URL}camera/frame?draw=true&t=$refreshKey",
-                contentDescription = "Vista actual de la cámara",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(240.dp),
-                contentScale = ContentScale.Crop
-            )
+            if (frameRequestKey == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(240.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "📷",
+                            style = MaterialTheme.typography.headlineLarge
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = "Aún no hay imagen cargada",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "Pulsa “Detectar objeto” o “Detectar y mover” para capturar una imagen.",
+                            color = Color(0xFFCBD5E1),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            } else {
+                AsyncImage(
+                    model = "${ApiConfig.BASE_URL}camera/frame?t=$frameRequestKey",
+                    contentDescription = "Vista actual de la cámara",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(240.dp),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
     }
 }

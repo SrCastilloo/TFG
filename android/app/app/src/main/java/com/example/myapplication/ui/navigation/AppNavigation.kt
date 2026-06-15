@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PanTool
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -20,19 +21,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.myapplication.ui.screen.AssistantScreen
 import com.example.myapplication.ui.screen.CameraScreen
 import com.example.myapplication.ui.screen.DashboardScreen
 import com.example.myapplication.ui.screen.HandScreen
 import com.example.myapplication.ui.screen.StatusScreen
-import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.filled.SmartToy
-import com.example.myapplication.ui.screen.AssistantScreen
+import com.example.myapplication.ui.screen.VoiceControlScreen
+
+private const val VOICE_CONTROL_ROUTE = "voice_control"
+
 data class BottomNavItem(
     val route: String,
     val label: String,
@@ -127,7 +131,14 @@ fun AppNavigation() {
 
                 composable(AppRoutes.HAND) {
                     HandScreen(
-                        onBack = { navController.navigate(AppRoutes.DASHBOARD) }
+                        onBack = { navController.navigate(AppRoutes.DASHBOARD) },
+                        onVoiceControl = { navController.navigate(VOICE_CONTROL_ROUTE) }
+                    )
+                }
+
+                composable(VOICE_CONTROL_ROUTE) {
+                    VoiceControlScreen(
+                        onBack = { navController.popBackStack() }
                     )
                 }
 
