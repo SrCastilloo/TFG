@@ -358,6 +358,8 @@ class AssistantService:
 Eres el asistente de una mano robótica controlada desde una Raspberry Pi.
 
 Responde siempre en español, de forma clara y breve.
+No uses Markdown. No uses negritas con **. Responde en texto plano, con frases cortas y listas simples si hace falta.
+
 Tu objetivo es ayudar al usuario a entender y manejar el sistema.
 
 Información importante:
@@ -405,27 +407,177 @@ Contexto actual del sistema:
         try:
             result = action()
 
-            ok = result.get("ok", False) if isinstance(result, dict) else False
-            message = result.get("message") if isinstance(result, dict) else None
-
-            if ok:
+            if not isinstance(result, dict):
                 return (
-                    f"Acción ejecutada: **{action_name}**.\n\n"
-                    f"{message if message else 'La orden se ha enviado correctamente.'}\n\n"
-                    f"Resultado técnico: `{result}`"
+                f"He ejecutado la acción: {action_name}.\n\n"
+                "La orden se ha enviado, aunque el sistema no ha devuelto detalles adicionales."
                 )
 
-            return (
-                f"He intentado ejecutar la acción **{action_name}**, "
-                "pero el sistema ha respondido que no se ha completado correctamente.\n\n"
-                f"Resultado técnico: `{result}`"
+            ok = result.get("ok", False)
+
+            if not ok:
+                error = result.get("error") or result.get("message") or "No se ha indicado el motivo."
+                return (
+                f"No he podido completar la acción: {action_name}.\n\n"
+                f"Motivo: {error}"
             )
+
+            return self._format_action_result(action_name, result)
 
         except Exception as e:
             return (
-                f"No he podido ejecutar la acción **{action_name}**.\n\n"
-                f"Error: `{str(e)}`"
+            f"No he podido ejecutar la acción: {action_name}.\n\n"
+            f"Error: {str(e)}"
+        )
+        
+
+    def _format_action_result(self, action_name: str, result: dict) -> str:
+        action = action_name.lower()
+
+        # Abrir mano
+        if "abrir mano" in action:
+            return (
+            "Mano abierta correctamente.\n\n"
+            "La mano se ha colocado en su posición inicial."
+        )
+
+        # Parar mano
+        if "parar mano" in action:
+            return (
+            "Movimiento detenido correctamente.\n\n"
+            "He enviado la orden de parada a la mano."
+        )
+
+        # Mover a posición concreta
+        if "mover mano a posición" in action:
+            position_id = result.get("position_id")
+
+            if position_id is not None:
+                return (
+                f"Mano movida correctamente.\n\n"
+                f"Posición enviada: {position_id}"
             )
+
+            return (
+            "Orden de movimiento enviada correctamente.\n\n"
+            "La mano debería desplazarse a la posición solicitada."
+            )
+
+        # Cambiar modo
+        if "modo mano" in action:
+            return (
+            "Modo mano activado.\n\n"
+            "Ahora puedes controlar la mano manualmente desde la app."
+        )
+
+        if "modo voz" in action:
+            return (
+            "Modo voz activado.\n\n"
+            "Ahora puedes usar comandos de voz para mover la mano."
+        )
+
+        if "modo cámara" in action or "modo camara" in action:
+            return (
+            "Modo cámara activado.\n\n"
+            "Ahora el sistema puede usar la cámara para reconocer objetos."
+        )
+
+        # Solo detectar objeto
+        if "detectar objeto" in action and "mover" not in action:
+            detected_object = result.get("object")
+            quality = result.get("detection_quality", 0)
+
+            if detected_object is None:
+                return (
+                "No he detectado ningún objeto con suficiente seguridad.\n\n"
+                f"Calidad de detección: {self._format_quality(quality)}"
+            )
+
+            object_name = self._translate_object_name(detected_object)
+
+            return (
+            "Objeto detectado correctamente.\n\n"
+            f"Objeto: {object_name}\n"
+            f"Calidad de detección: {self._format_quality(quality)}"
+            )
+
+        # Detectar objeto y mover mano
+        if "detectar objeto y mover" in action:
+            detected_object = result.get("object")
+            quality = result.get("detection_quality", 0)
+
+            if detected_object is None:
+                return (
+                "No he detectado ningún objeto con suficiente seguridad.\n\n"
+                "Por seguridad, no he movido la mano.\n\n"
+                f"Calidad de detección: {self._format_quality(quality)}"
+            )
+
+            object_name = self._translate_object_name(detected_object)
+
+            position_id = result.get("position_id")
+
+            if position_id is None:
+                position_id = self.CAMERA_OBJECT_MAPPING.get(detected_object)
+
+            if position_id is not None:
+                return (
+                "Objeto detectado y movimiento enviado correctamente.\n\n"
+                f"Objeto detectado: {object_name}\n"
+                f"Calidad de detección: {self._format_quality(quality)}\n"
+                f"Posición enviada a la mano: {position_id}"
+            )
+
+            return (
+            "Objeto detectado correctamente, pero no tengo una posición asociada para mover la mano.\n\n"
+            f"Objeto detectado: {object_name}\n"
+            f"Calidad de detección: {self._format_quality(quality)}"
+            )
+
+        # Respuesta genérica si no entra en ningún caso anterior
+        message = result.get("message")
+
+        if message:
+            return (
+            f"Acción realizada correctamente.\n\n"
+            f"{message}"
+            )
+
+        return (
+        f"Acción realizada correctamente.\n\n"
+        f"Acción: {action_name}"
+        )
+    
+
+
+
+    def _format_quality(self, quality) -> str:
+        try:
+            quality_float = float(quality)
+            return f"{quality_float:.1f}%"
+        except Exception:
+            return "desconocida"
+
+
+    def _translate_object_name(self, object_name: str) -> str:
+        translations = {
+        "person": "persona",
+        "cup": "taza / vaso",
+        "tv": "televisión",
+        "chair": "silla",
+        "scissors": "tijeras",
+        "bottle": "botella",
+        "mouse": "ratón",
+        "keyboard": "teclado",
+    }
+
+        return translations.get(object_name, object_name)
+
+
+
+
+
+    
 
     # ---------------------------------------------------------------------
     # DETECCIÓN DE INTENCIONES
