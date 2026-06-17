@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.data.remote.ApiClient
 import com.example.myapplication.data.repository.TfgRepository
+import com.example.myapplication.ui.history.ActionHistoryStore
 import com.example.myapplication.ui.state.AssistantUiState
 import com.example.myapplication.ui.state.ChatMessage
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,6 +45,19 @@ class AssistantViewModel : ViewModel() {
             try {
                 val response = repository.chatWithAssistant(message)
 
+                val historyTitle = if (looksLikeActionResponse(response.reply)) {
+                    "Acción desde asistente"
+                } else {
+                    "Consulta al asistente"
+                }
+
+                ActionHistoryStore.add(
+                    source = "Asistente",
+                    title = historyTitle,
+                    detail = "Usuario: ${message.take(80)}",
+                    success = response.ok
+                )
+
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     messages = _uiState.value.messages + ChatMessage(
@@ -53,13 +67,22 @@ class AssistantViewModel : ViewModel() {
                     error = null
                 )
             } catch (e: Exception) {
+                val errorMessage = e.message ?: "Error desconocido"
+
+                ActionHistoryStore.add(
+                    source = "Asistente",
+                    title = "Error en asistente",
+                    detail = errorMessage,
+                    success = false
+                )
+
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     messages = _uiState.value.messages + ChatMessage(
                         text = "Ha ocurrido un error al contactar con el asistente.",
                         isUser = false
                     ),
-                    error = e.message
+                    error = errorMessage
                 )
             }
         }
@@ -87,6 +110,23 @@ class AssistantViewModel : ViewModel() {
                 val positionId = response.position_id
                 val commandName = commandToName(command)
 
+                val finalMessage = buildVoiceMessage(
+                    commandName = commandName,
+                    moved = moved,
+                    positionId = positionId
+                )
+
+                ActionHistoryStore.add(
+                    source = "Voz",
+                    title = if (moved) "Comando de voz reconocido" else "Comando de voz sin movimiento",
+                    detail = if (moved && positionId != null) {
+                        "$commandName · Posición $positionId · Calidad ${quality ?: "-"}"
+                    } else {
+                        "$commandName · No se mueve la mano · Calidad ${quality ?: "-"}"
+                    },
+                    success = response.ok
+                )
+
                 _uiState.value = _uiState.value.copy(
                     isVoiceLoading = false,
                     voiceCommand = command,
@@ -94,20 +134,25 @@ class AssistantViewModel : ViewModel() {
                     voiceQuality = quality,
                     voiceMoved = moved,
                     voicePositionId = positionId,
-                    voiceMessage = buildVoiceMessage(
-                        commandName = commandName,
-                        moved = moved,
-                        positionId = positionId
-                    ),
+                    voiceMessage = finalMessage,
                     voiceError = if (!response.ok) response.error else null
                 )
 
             } catch (e: Exception) {
+                val errorMessage = "No se pudo contactar con la Raspberry: ${e.message}"
+
+                ActionHistoryStore.add(
+                    source = "Voz",
+                    title = "Error en control por voz",
+                    detail = errorMessage,
+                    success = false
+                )
+
                 _uiState.value = _uiState.value.copy(
                     isVoiceLoading = false,
                     voiceMoved = false,
                     voiceMessage = null,
-                    voiceError = "No se pudo contactar con la Raspberry: ${e.message}"
+                    voiceError = errorMessage
                 )
             }
         }
@@ -135,5 +180,18 @@ class AssistantViewModel : ViewModel() {
         } else {
             "No se ha reconocido un comando válido. Detectado: $commandName."
         }
+    }
+
+    private fun looksLikeActionResponse(reply: String): Boolean {
+        val normalized = reply.lowercase()
+
+        return normalized.contains("mano movida") ||
+                normalized.contains("movimiento enviado") ||
+                normalized.contains("modo") && normalized.contains("activado") ||
+                normalized.contains("mano abierta") ||
+                normalized.contains("movimiento detenido") ||
+                normalized.contains("objeto detectado") ||
+                normalized.contains("acción ejecutada") ||
+                normalized.contains("accion ejecutada")
     }
 }

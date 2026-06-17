@@ -5,7 +5,6 @@ object AppRoutes {
     const val STATUS = "status"
     const val HAND = "hand"
     const val CAMERA = "camera"
-
+    const val VOICE = "voice"
     const val ASSISTANT = "assistant"
-
 }

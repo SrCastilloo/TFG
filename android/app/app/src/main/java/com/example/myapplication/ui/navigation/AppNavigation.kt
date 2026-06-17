@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Dashboard
@@ -18,6 +19,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -28,14 +30,18 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.myapplication.ui.components.FloatingEmergencyStopButton
+import com.example.myapplication.ui.components.FloatingSettingsButton
 import com.example.myapplication.ui.screen.AssistantScreen
 import com.example.myapplication.ui.screen.CameraScreen
+import com.example.myapplication.ui.screen.ConnectionSettingsScreen
 import com.example.myapplication.ui.screen.DashboardScreen
 import com.example.myapplication.ui.screen.HandScreen
 import com.example.myapplication.ui.screen.StatusScreen
 import com.example.myapplication.ui.screen.VoiceControlScreen
 
 private const val VOICE_CONTROL_ROUTE = "voice_control"
+private const val SETTINGS_ROUTE = "connection_settings"
 
 data class BottomNavItem(
     val route: String,
@@ -77,6 +83,7 @@ fun AppNavigation() {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val currentRoute = currentDestination?.route
 
     Box(
         modifier = Modifier
@@ -109,50 +116,78 @@ fun AppNavigation() {
                 )
             }
         ) { innerPadding ->
-            NavHost(
-                navController = navController,
-                startDestination = AppRoutes.DASHBOARD,
-                modifier = Modifier.padding(innerPadding)
+            Box(
+                modifier = Modifier.fillMaxSize()
             ) {
-                composable(AppRoutes.DASHBOARD) {
-                    DashboardScreen(
-                        onGoToStatus = { navController.navigate(AppRoutes.STATUS) },
-                        onGoToHand = { navController.navigate(AppRoutes.HAND) },
-                        onGoToCamera = { navController.navigate(AppRoutes.CAMERA) },
-                        onGoToAssistant = { navController.navigate(AppRoutes.ASSISTANT) }
+                NavHost(
+                    navController = navController,
+                    startDestination = AppRoutes.DASHBOARD,
+                    modifier = Modifier.padding(innerPadding)
+                ) {
+                    composable(AppRoutes.DASHBOARD) {
+                        DashboardScreen(
+                            onGoToStatus = { navController.navigate(AppRoutes.STATUS) },
+                            onGoToHand = { navController.navigate(AppRoutes.HAND) },
+                            onGoToCamera = { navController.navigate(AppRoutes.CAMERA) },
+                            onGoToAssistant = { navController.navigate(AppRoutes.ASSISTANT) },
+                            onGoToVoice = { navController.navigate(VOICE_CONTROL_ROUTE) }
+                        )
+                    }
+
+                    composable(AppRoutes.STATUS) {
+                        StatusScreen(
+                            onBack = { navController.navigate(AppRoutes.DASHBOARD) }
+                        )
+                    }
+
+                    composable(AppRoutes.HAND) {
+                        HandScreen(
+                            onBack = { navController.navigate(AppRoutes.DASHBOARD) },
+                            onVoiceControl = { navController.navigate(VOICE_CONTROL_ROUTE) }
+                        )
+                    }
+
+                    composable(VOICE_CONTROL_ROUTE) {
+                        VoiceControlScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(AppRoutes.CAMERA) {
+                        CameraScreen(
+                            onBack = { navController.navigate(AppRoutes.DASHBOARD) }
+                        )
+                    }
+
+                    composable(AppRoutes.ASSISTANT) {
+                        AssistantScreen(
+                            onBack = { navController.navigate(AppRoutes.DASHBOARD) }
+                        )
+                    }
+
+                    composable(SETTINGS_ROUTE) {
+                        ConnectionSettingsScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                }
+
+                if (currentRoute != SETTINGS_ROUTE) {
+                    FloatingSettingsButton(
+                        onClick = { navController.navigate(SETTINGS_ROUTE) },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .statusBarsPadding()
+                            .padding(top = 14.dp, end = 16.dp)
                     )
                 }
 
-                composable(AppRoutes.STATUS) {
-                    StatusScreen(
-                        onBack = { navController.navigate(AppRoutes.DASHBOARD) }
-                    )
-                }
-
-                composable(AppRoutes.HAND) {
-                    HandScreen(
-                        onBack = { navController.navigate(AppRoutes.DASHBOARD) },
-                        onVoiceControl = { navController.navigate(VOICE_CONTROL_ROUTE) }
-                    )
-                }
-
-                composable(VOICE_CONTROL_ROUTE) {
-                    VoiceControlScreen(
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                composable(AppRoutes.CAMERA) {
-                    CameraScreen(
-                        onBack = { navController.navigate(AppRoutes.DASHBOARD) }
-                    )
-                }
-
-                composable(AppRoutes.ASSISTANT) {
-                    AssistantScreen(
-                        onBack = { navController.navigate(AppRoutes.DASHBOARD) }
-                    )
-                }
+                FloatingEmergencyStopButton(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(innerPadding)
+                        .padding(end = 16.dp, bottom = 12.dp)
+                )
             }
         }
     }

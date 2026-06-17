@@ -3,20 +3,17 @@ package com.example.myapplication.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.data.remote.ApiClient
-import com.example.myapplication.data.remote.TfgApiService
 import com.example.myapplication.data.repository.TfgRepository
+import com.example.myapplication.ui.history.ActionHistoryStore
 import com.example.myapplication.ui.state.StatusUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 
 class StatusViewModel : ViewModel() {
 
     private val apiService = ApiClient.apiService
-
     private val repository = TfgRepository(apiService)
 
     private val _uiState = MutableStateFlow(StatusUiState(isLoading = true))
@@ -49,15 +46,20 @@ class StatusViewModel : ViewModel() {
                     error = null
                 )
             } catch (e: Exception) {
+                val errorMessage = e.message ?: "Error desconocido"
+
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Error desconocido"
+                    error = errorMessage
                 )
             }
         }
     }
 
-    private fun runAction(action: suspend () -> String?) {
+    private fun runAction(
+        historyTitle: String,
+        action: suspend () -> String?
+    ) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isActionLoading = true,
@@ -69,6 +71,14 @@ class StatusViewModel : ViewModel() {
                 val message = action()
                 val systemInfo = repository.getSystemInfo()
                 val handPositions = repository.getHandPositions()
+                val finalMessage = message ?: "Acción realizada correctamente"
+
+                ActionHistoryStore.add(
+                    source = "Estado",
+                    title = historyTitle,
+                    detail = finalMessage,
+                    success = true
+                )
 
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -80,39 +90,60 @@ class StatusViewModel : ViewModel() {
                     handAvailable = systemInfo.hand_available,
                     cameraAvailable = systemInfo.camera_available,
                     positions = handPositions.positions,
-                    actionMessage = message ?: "Acción realizada correctamente",
+                    actionMessage = finalMessage,
                     error = null
                 )
             } catch (e: Exception) {
+                val errorMessage = e.message ?: "Error desconocido"
+
+                ActionHistoryStore.add(
+                    source = "Estado",
+                    title = historyTitle,
+                    detail = errorMessage,
+                    success = false
+                )
+
                 _uiState.value = _uiState.value.copy(
                     isActionLoading = false,
-                    error = e.message ?: "Error desconocido"
+                    error = errorMessage
                 )
             }
         }
     }
 
     fun setModeHand() {
-        runAction { repository.setModeHand().message }
+        runAction("Activar modo mano") {
+            repository.setModeHand().message
+        }
     }
 
     fun setModeVoice() {
-        runAction { repository.setModeVoice().message }
+        runAction("Activar modo voz") {
+            repository.setModeVoice().message
+        }
     }
 
     fun setModeCamera() {
-        runAction { repository.setModeCamera().message }
+        runAction("Activar modo cámara") {
+            repository.setModeCamera().message
+        }
     }
 
     fun openHand() {
-        runAction { repository.openHand().message }
+        runAction("Abrir mano") {
+            repository.openHand().message
+        }
     }
 
     fun stopHand() {
-        runAction { repository.stopHand().message }
+        runAction("Parar mano") {
+            repository.stopHand().message
+        }
     }
 
     fun moveToPosition(positionId: Int) {
-        runAction { repository.moveToPosition(positionId).message }
+        runAction("Mover a posición $positionId") {
+            repository.moveToPosition(positionId).message
+        }
     }
 }
