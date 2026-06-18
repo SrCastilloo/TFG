@@ -89,6 +89,14 @@ private val AppBackground = Brush.verticalGradient(
     )
 )
 
+private val DemoGradient = Brush.linearGradient(
+    listOf(
+        Color(0xFFF59E0B),
+        Color(0xFFEF4444),
+        Color(0xFFA855F7)
+    )
+)
+
 private val HeroGradient = Brush.linearGradient(
     listOf(
         Color(0xFF111827),
@@ -165,7 +173,8 @@ fun DashboardScreen(
     onGoToHand: () -> Unit,
     onGoToCamera: () -> Unit,
     onGoToAssistant: () -> Unit,
-    onGoToVoice: () -> Unit
+    onGoToVoice: () -> Unit,
+    onGoToDemo: () -> Unit
 ) {
     val featuredItem = DashboardItem(
         title = "Control de la mano",
@@ -200,6 +209,15 @@ fun DashboardScreen(
             badge = "Voz",
             gradient = VoiceGradient,
             onClick = onGoToVoice
+        ),
+
+        DashboardItem(
+            title = "Demo del sistema",
+            subtitle = "Ejecuta secuencias automáticas para enseñar el funcionamiento completo.",
+            emoji = "🎬",
+            badge = "Demo",
+            gradient = DemoGradient,
+            onClick = onGoToDemo
         ),
         DashboardItem(
             title = "Asistente",

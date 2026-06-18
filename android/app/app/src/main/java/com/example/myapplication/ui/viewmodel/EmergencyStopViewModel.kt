@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.data.remote.ApiClient
 import com.example.myapplication.data.repository.TfgRepository
+import com.example.myapplication.ui.demo.DemoControlCenter
 import com.example.myapplication.ui.history.ActionHistoryStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,7 @@ class EmergencyStopViewModel : ViewModel() {
     val uiState: StateFlow<EmergencyStopUiState> = _uiState.asStateFlow()
 
     fun emergencyStop() {
+        DemoControlCenter.requestCancel()
         if (_uiState.value.isLoading) return
 
         viewModelScope.launch {

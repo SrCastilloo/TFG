@@ -3,17 +3,28 @@ package com.example.myapplication.ui.screen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -34,6 +45,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -45,14 +57,18 @@ import com.example.myapplication.ui.viewmodel.CameraViewModel
 @Composable
 fun CameraScreen(
     onBack: () -> Unit,
+    scaffoldPadding: PaddingValues = PaddingValues(),
     viewModel: CameraViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var lastFrameRequestKey by remember { mutableStateOf<Long?>(null) }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
+            .padding(scaffoldPadding)
+            .consumeWindowInsets(scaffoldPadding)
+            .imePadding()
             .background(
                 Brush.verticalGradient(
                     listOf(
@@ -63,130 +79,362 @@ fun CameraScreen(
                 )
             )
     ) {
+        val isLandscape = maxWidth > maxHeight
+        val compact = maxHeight < 560.dp || maxWidth < 390.dp
+
+        if (isLandscape) {
+            CameraLandscapeContent(
+                onBack = onBack,
+                isLoading = uiState.isLoading,
+                error = uiState.error,
+                actionMessage = uiState.actionMessage,
+                detectedObject = uiState.detectedObject,
+                detectionQuality = uiState.detectionQuality,
+                targetPosition = uiState.targetPosition,
+                frameRequestKey = lastFrameRequestKey,
+                onDetect = {
+                    viewModel.detectObject()
+                    lastFrameRequestKey = System.currentTimeMillis()
+                },
+                onDetectAndMove = {
+                    viewModel.detectAndMove()
+                    lastFrameRequestKey = System.currentTimeMillis()
+                },
+                compact = true
+            )
+        } else {
+            CameraPortraitContent(
+                onBack = onBack,
+                isLoading = uiState.isLoading,
+                error = uiState.error,
+                actionMessage = uiState.actionMessage,
+                detectedObject = uiState.detectedObject,
+                detectionQuality = uiState.detectionQuality,
+                targetPosition = uiState.targetPosition,
+                frameRequestKey = lastFrameRequestKey,
+                onDetect = {
+                    viewModel.detectObject()
+                    lastFrameRequestKey = System.currentTimeMillis()
+                },
+                onDetectAndMove = {
+                    viewModel.detectAndMove()
+                    lastFrameRequestKey = System.currentTimeMillis()
+                },
+                compact = compact
+            )
+        }
+
+        if (uiState.isLoading) {
+            LoadingCameraOverlay()
+        }
+    }
+}
+
+@Composable
+private fun CameraPortraitContent(
+    onBack: () -> Unit,
+    isLoading: Boolean,
+    error: String?,
+    actionMessage: String?,
+    detectedObject: String?,
+    detectionQuality: Double?,
+    targetPosition: Int?,
+    frameRequestKey: Long?,
+    onDetect: () -> Unit,
+    onDetectAndMove: () -> Unit,
+    compact: Boolean
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .windowInsetsPadding(
+                WindowInsets.safeDrawing.only(
+                    WindowInsetsSides.Horizontal
+                )
+            ),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 16.dp,
+            bottom = 110.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(
+            if (compact) 12.dp else 16.dp
+        )
+    ) {
+        item {
+            TopActionRow(
+                onBack = onBack,
+                onRefresh = { },
+                refreshEnabled = false,
+                compact = compact
+            )
+        }
+
+        item {
+            HeroCameraCard(
+                compact = compact
+            )
+        }
+
+        cameraPreviewItems(
+            frameRequestKey = frameRequestKey,
+            compact = compact
+        )
+
+        cameraFeedbackItems(
+            error = error,
+            actionMessage = actionMessage,
+            compact = compact
+        )
+
+        item {
+            QuickGuideCard(
+                compact = compact
+            )
+        }
+
+        cameraActionItems(
+            isLoading = isLoading,
+            onDetect = onDetect,
+            onDetectAndMove = onDetectAndMove,
+            compact = compact
+        )
+
+        cameraResultItems(
+            detectedObject = detectedObject,
+            detectionQuality = detectionQuality,
+            targetPosition = targetPosition,
+            compact = compact
+        )
+    }
+}
+
+@Composable
+private fun CameraLandscapeContent(
+    onBack: () -> Unit,
+    isLoading: Boolean,
+    error: String?,
+    actionMessage: String?,
+    detectedObject: String?,
+    detectionQuality: Double?,
+    targetPosition: Int?,
+    frameRequestKey: Long?,
+    onDetect: () -> Unit,
+    onDetectAndMove: () -> Unit,
+    compact: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .windowInsetsPadding(
+                WindowInsets.safeDrawing.only(
+                    WindowInsetsSides.Horizontal
+                )
+            )
+            .padding(
+                start = 14.dp,
+                end = 14.dp,
+                top = 12.dp,
+                bottom = 14.dp
+            ),
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
         LazyColumn(
             modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
+                .weight(1.05f)
+                .fillMaxHeight(),
             contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = 16.dp,
-                bottom = 110.dp
+                bottom = 90.dp
             ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
                 TopActionRow(
                     onBack = onBack,
                     onRefresh = { },
-                    refreshEnabled = false
+                    refreshEnabled = false,
+                    compact = compact
                 )
             }
 
             item {
-                HeroCameraCard()
-            }
-
-            item {
-                SectionTitle(
-                    title = "Vista de la cámara",
-                    subtitle = "La imagen solo se actualiza al pulsar una acción de detección"
+                HeroCameraCard(
+                    compact = compact
                 )
             }
 
-            item {
-                CameraPreviewCard(
-                    frameRequestKey = lastFrameRequestKey
-                )
-            }
-
-            if (uiState.error != null) {
-                item {
-                    FeedbackCard(
-                        title = "Algo ha fallado",
-                        text = uiState.error ?: "",
-                        isError = true
-                    )
-                }
-            }
-
-            if (uiState.actionMessage != null) {
-                item {
-                    FeedbackCard(
-                        title = "Última acción",
-                        text = uiState.actionMessage ?: "",
-                        isError = false
-                    )
-                }
-            }
+            cameraPreviewItems(
+                frameRequestKey = frameRequestKey,
+                compact = compact
+            )
 
             item {
-                QuickGuideCard()
-            }
-
-            item {
-                SectionTitle(
-                    title = "Acciones disponibles",
-                    subtitle = "Puedes detectar un objeto o detectar y mover la mano automáticamente"
-                )
-            }
-
-            item {
-                CameraActionsCard(
-                    isLoading = uiState.isLoading,
-                    onDetect = {
-                        viewModel.detectObject()
-                        lastFrameRequestKey = System.currentTimeMillis()
-                    },
-                    onDetectAndMove = {
-                        viewModel.detectAndMove()
-                        lastFrameRequestKey = System.currentTimeMillis()
-                    }
-                )
-            }
-
-            item {
-                SectionTitle(
-                    title = "Resultado de la detección",
-                    subtitle = "Información actual devuelta por la cámara"
-                )
-            }
-
-            item {
-                DetectionResultCard(
-                    detectedObject = uiState.detectedObject,
-                    detectionQuality = uiState.detectionQuality,
-                    targetPosition = uiState.targetPosition
+                QuickGuideCard(
+                    compact = compact
                 )
             }
         }
 
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+        LazyColumn(
+            modifier = Modifier
+                .weight(0.95f)
+                .fillMaxHeight(),
+            contentPadding = PaddingValues(
+                bottom = 90.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            cameraFeedbackItems(
+                error = error,
+                actionMessage = actionMessage,
+                compact = compact
+            )
+
+            cameraActionItems(
+                isLoading = isLoading,
+                onDetect = onDetect,
+                onDetectAndMove = onDetectAndMove,
+                compact = compact
+            )
+
+            cameraResultItems(
+                detectedObject = detectedObject,
+                detectionQuality = detectionQuality,
+                targetPosition = targetPosition,
+                compact = compact
+            )
+        }
+    }
+}
+
+private fun LazyListScope.cameraPreviewItems(
+    frameRequestKey: Long?,
+    compact: Boolean
+) {
+    item {
+        SectionTitle(
+            title = "Vista de la cámara",
+            subtitle = "La imagen solo se actualiza al pulsar una acción de detección",
+            compact = compact
+        )
+    }
+
+    item {
+        CameraPreviewCard(
+            frameRequestKey = frameRequestKey,
+            compact = compact
+        )
+    }
+}
+
+private fun LazyListScope.cameraFeedbackItems(
+    error: String?,
+    actionMessage: String?,
+    compact: Boolean
+) {
+    if (error != null) {
+        item {
+            FeedbackCard(
+                title = "Algo ha fallado",
+                text = error,
+                isError = true,
+                compact = compact
+            )
+        }
+    }
+
+    if (actionMessage != null) {
+        item {
+            FeedbackCard(
+                title = "Última acción",
+                text = actionMessage,
+                isError = false,
+                compact = compact
+            )
+        }
+    }
+}
+
+private fun LazyListScope.cameraActionItems(
+    isLoading: Boolean,
+    onDetect: () -> Unit,
+    onDetectAndMove: () -> Unit,
+    compact: Boolean
+) {
+    item {
+        SectionTitle(
+            title = "Acciones disponibles",
+            subtitle = "Puedes detectar un objeto o detectar y mover la mano automáticamente",
+            compact = compact
+        )
+    }
+
+    item {
+        CameraActionsCard(
+            isLoading = isLoading,
+            onDetect = onDetect,
+            onDetectAndMove = onDetectAndMove,
+            compact = compact
+        )
+    }
+}
+
+private fun LazyListScope.cameraResultItems(
+    detectedObject: String?,
+    detectionQuality: Double?,
+    targetPosition: Int?,
+    compact: Boolean
+) {
+    item {
+        SectionTitle(
+            title = "Resultado de la detección",
+            subtitle = "Información actual devuelta por la cámara",
+            compact = compact
+        )
+    }
+
+    item {
+        DetectionResultCard(
+            detectedObject = detectedObject,
+            detectionQuality = detectionQuality,
+            targetPosition = targetPosition,
+            compact = compact
+        )
+    }
+}
+
+@Composable
+private fun LoadingCameraOverlay() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            color = Color(0xFF0B132B).copy(alpha = 0.82f)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
-                    color = Color(0xFF0B132B).copy(alpha = 0.82f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            color = Color(0xFFC084FC),
-                            strokeWidth = 3.dp
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Text(
-                            text = "Procesando cámara...",
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
+                CircularProgressIndicator(
+                    color = Color(0xFFC084FC),
+                    strokeWidth = 3.dp
+                )
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Text(
+                    text = "Procesando cámara...",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }
@@ -194,27 +442,31 @@ fun CameraScreen(
 
 @Composable
 private fun CameraPreviewCard(
-    frameRequestKey: Long?
+    frameRequestKey: Long?,
+    compact: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(
+            if (compact) 22.dp else 28.dp
+        ),
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFF0F1B33)
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(if (compact) 12.dp else 16.dp)
         ) {
             if (frameRequestKey == null) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(240.dp),
+                        .height(if (compact) 190.dp else 240.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 10.dp)
                     ) {
                         Text(
                             text = "📷",
@@ -226,8 +478,14 @@ private fun CameraPreviewCard(
                         Text(
                             text = "Aún no hay imagen cargada",
                             color = Color.White,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            style = if (compact) {
+                                MaterialTheme.typography.titleSmall
+                            } else {
+                                MaterialTheme.typography.titleMedium
+                            },
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -235,7 +493,9 @@ private fun CameraPreviewCard(
                         Text(
                             text = "Pulsa “Detectar objeto” o “Detectar y mover” para capturar una imagen.",
                             color = Color(0xFFCBD5E1),
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = if (compact) 2 else 3,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -245,7 +505,7 @@ private fun CameraPreviewCard(
                     contentDescription = "Vista actual de la cámara",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(240.dp),
+                        .height(if (compact) 190.dp else 240.dp),
                     contentScale = ContentScale.Crop
                 )
             }
@@ -257,11 +517,13 @@ private fun CameraPreviewCard(
 private fun TopActionRow(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
-    refreshEnabled: Boolean
+    refreshEnabled: Boolean,
+    compact: Boolean
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
             shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
@@ -270,9 +532,19 @@ private fun TopActionRow(
         ) {
             Text(
                 text = "← Volver",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                modifier = Modifier.padding(
+                    horizontal = if (compact) 12.dp else 16.dp,
+                    vertical = if (compact) 8.dp else 10.dp
+                ),
                 color = Color.White,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                style = if (compact) {
+                    MaterialTheme.typography.bodySmall
+                } else {
+                    MaterialTheme.typography.bodyMedium
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
 
@@ -283,21 +555,30 @@ private fun TopActionRow(
             Text(
                 text = "Recargar",
                 color = Color(0xFFE9D5FF),
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                style = if (compact) {
+                    MaterialTheme.typography.bodySmall
+                } else {
+                    MaterialTheme.typography.bodyMedium
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
 }
 
 @Composable
-private fun HeroCameraCard() {
+private fun HeroCameraCard(
+    compact: Boolean
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(
-            topStart = 30.dp,
-            topEnd = 22.dp,
-            bottomEnd = 30.dp,
-            bottomStart = 22.dp
+            topStart = if (compact) 24.dp else 30.dp,
+            topEnd = if (compact) 18.dp else 22.dp,
+            bottomEnd = if (compact) 24.dp else 30.dp,
+            bottomStart = if (compact) 18.dp else 22.dp
         ),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
@@ -312,26 +593,38 @@ private fun HeroCameraCard() {
                         )
                     )
                 )
-                .padding(22.dp)
+                .padding(if (compact) 16.dp else 22.dp)
         ) {
             Column {
                 LightPill(text = "Visión artificial")
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(if (compact) 10.dp else 14.dp))
 
                 Text(
                     text = "Cámara y detección",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = if (compact) {
+                        MaterialTheme.typography.titleLarge
+                    } else {
+                        MaterialTheme.typography.headlineSmall
+                    },
                     color = Color.White,
-                    fontWeight = FontWeight.ExtraBold
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = "Desde aquí puedes detectar objetos y, si lo deseas, lanzar la acción automática para detectar y mover la mano.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.95f)
+                    style = if (compact) {
+                        MaterialTheme.typography.bodyMedium
+                    } else {
+                        MaterialTheme.typography.bodyLarge
+                    },
+                    color = Color.White.copy(alpha = 0.95f),
+                    maxLines = if (compact) 3 else 4,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -342,7 +635,8 @@ private fun HeroCameraCard() {
 private fun FeedbackCard(
     title: String,
     text: String,
-    isError: Boolean
+    isError: Boolean,
+    compact: Boolean
 ) {
     val background = if (isError) Color(0xFF4C1D24) else Color(0xFF0F3B2E)
     val titleColor = if (isError) Color(0xFFFFD5DC) else Color(0xFFB7F7D8)
@@ -350,45 +644,63 @@ private fun FeedbackCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(
+            if (compact) 20.dp else 24.dp
+        ),
         colors = CardDefaults.cardColors(containerColor = background)
     ) {
         Column(
-            modifier = Modifier.padding(18.dp)
+            modifier = Modifier.padding(if (compact) 14.dp else 18.dp)
         ) {
             Text(
                 text = title,
                 color = titleColor,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+
             Spacer(modifier = Modifier.height(6.dp))
+
             Text(
                 text = text,
                 color = textColor,
-                style = MaterialTheme.typography.bodyLarge
+                style = if (compact) {
+                    MaterialTheme.typography.bodyMedium
+                } else {
+                    MaterialTheme.typography.bodyLarge
+                },
+                maxLines = if (compact) 3 else 5,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
 }
 
 @Composable
-private fun QuickGuideCard() {
+private fun QuickGuideCard(
+    compact: Boolean
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(
+            if (compact) 20.dp else 24.dp
+        ),
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFFFFFBF5)
         )
     ) {
         Column(
-            modifier = Modifier.padding(18.dp)
+            modifier = Modifier.padding(if (compact) 14.dp else 18.dp)
         ) {
             Text(
                 text = "Guía rápida",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF1F2937)
+                color = Color(0xFF1F2937),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -431,7 +743,9 @@ private fun GuideStep(
             text = text,
             color = Color(0xFF374151),
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -440,38 +754,47 @@ private fun GuideStep(
 private fun CameraActionsCard(
     isLoading: Boolean,
     onDetect: () -> Unit,
-    onDetectAndMove: () -> Unit
+    onDetectAndMove: () -> Unit,
+    compact: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(
-            topStart = 28.dp,
-            topEnd = 18.dp,
-            bottomEnd = 28.dp,
-            bottomStart = 18.dp
+            topStart = if (compact) 22.dp else 28.dp,
+            topEnd = if (compact) 16.dp else 18.dp,
+            bottomEnd = if (compact) 22.dp else 28.dp,
+            bottomStart = if (compact) 16.dp else 18.dp
         ),
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFFF8FAFC)
         )
     ) {
         Column(
-            modifier = Modifier.padding(20.dp)
+            modifier = Modifier.padding(if (compact) 16.dp else 20.dp)
         ) {
             Text(
                 text = "Acciones de cámara",
-                style = MaterialTheme.typography.titleLarge,
+                style = if (compact) {
+                    MaterialTheme.typography.titleMedium
+                } else {
+                    MaterialTheme.typography.titleLarge
+                },
                 color = Color(0xFF111827),
-                fontWeight = FontWeight.ExtraBold
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             Text(
                 text = "Primero puedes detectar un objeto y después decidir si quieres mover la mano automáticamente.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color(0xFF4B5563),
-                modifier = Modifier.padding(top = 6.dp)
+                modifier = Modifier.padding(top = 6.dp),
+                maxLines = if (compact) 2 else 3,
+                overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(if (compact) 14.dp else 16.dp))
 
             FriendlyActionButton(
                 text = "Detectar objeto",
@@ -479,7 +802,7 @@ private fun CameraActionsCard(
                 onClick = onDetect,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp),
+                    .height(if (compact) 48.dp else 54.dp),
                 containerColor = Color(0xFF06B6D4)
             )
 
@@ -491,7 +814,7 @@ private fun CameraActionsCard(
                 onClick = onDetectAndMove,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp),
+                    .height(if (compact) 48.dp else 54.dp),
                 containerColor = Color(0xFF8B5CF6)
             )
         }
@@ -502,42 +825,54 @@ private fun CameraActionsCard(
 private fun DetectionResultCard(
     detectedObject: String?,
     detectionQuality: Double?,
-    targetPosition: Int?
+    targetPosition: Int?,
+    compact: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(
+            if (compact) 22.dp else 28.dp
+        ),
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFF0F1B33)
         )
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            modifier = Modifier.padding(if (compact) 16.dp else 20.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp)
         ) {
             Text(
                 text = "Resultado actual",
-                style = MaterialTheme.typography.titleLarge,
+                style = if (compact) {
+                    MaterialTheme.typography.titleMedium
+                } else {
+                    MaterialTheme.typography.titleLarge
+                },
                 color = Color.White,
-                fontWeight = FontWeight.ExtraBold
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             ResultInfoCard(
                 emoji = "📦",
                 label = "Objeto detectado",
-                value = friendlyObjectName(detectedObject)
+                value = friendlyObjectName(detectedObject),
+                compact = compact
             )
 
             ResultInfoCard(
                 emoji = "🎯",
                 label = "Calidad de detección",
-                value = detectionQuality?.let { "${it}%" } ?: "Sin datos"
+                value = detectionQuality?.let { "${it}%" } ?: "Sin datos",
+                compact = compact
             )
 
             ResultInfoCard(
                 emoji = "🖐️",
                 label = "Posición objetivo",
-                value = targetPosition?.let { getHandPositionTitle(it) } ?: "Sin posición asignada"
+                value = targetPosition?.let { getHandPositionTitle(it) } ?: "Sin posición asignada",
+                compact = compact
             )
         }
     }
@@ -547,32 +882,43 @@ private fun DetectionResultCard(
 private fun ResultInfoCard(
     emoji: String,
     label: String,
-    value: String
+    value: String,
+    compact: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(22.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(
+            if (compact) 18.dp else 22.dp
+        ),
         colors = CardDefaults.cardColors(
             containerColor = Color.White.copy(alpha = 0.06f)
         )
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(if (compact) 12.dp else 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = emoji,
-                style = MaterialTheme.typography.headlineMedium
+                style = if (compact) {
+                    MaterialTheme.typography.headlineSmall
+                } else {
+                    MaterialTheme.typography.headlineMedium
+                }
             )
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Column {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(
                     text = label,
                     color = Color(0xFFCBD5E1),
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -580,8 +926,14 @@ private fun ResultInfoCard(
                 Text(
                     text = value,
                     color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold
+                    style = if (compact) {
+                        MaterialTheme.typography.bodyMedium
+                    } else {
+                        MaterialTheme.typography.bodyLarge
+                    },
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -610,7 +962,9 @@ private fun FriendlyActionButton(
     ) {
         Text(
             text = text,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -625,7 +979,9 @@ private fun LightPill(text: String) {
             text = text,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
             color = Color.White,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -633,21 +989,30 @@ private fun LightPill(text: String) {
 @Composable
 private fun SectionTitle(
     title: String,
-    subtitle: String
+    subtitle: String,
+    compact: Boolean
 ) {
     Column {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge,
+            style = if (compact) {
+                MaterialTheme.typography.titleMedium
+            } else {
+                MaterialTheme.typography.titleLarge
+            },
             color = Color.White,
-            fontWeight = FontWeight.ExtraBold
+            fontWeight = FontWeight.ExtraBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
 
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
             color = Color(0xFFCBD5E1),
-            modifier = Modifier.padding(top = 4.dp)
+            modifier = Modifier.padding(top = 4.dp),
+            maxLines = if (compact) 2 else 3,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

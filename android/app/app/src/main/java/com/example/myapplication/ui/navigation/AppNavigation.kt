@@ -39,9 +39,12 @@ import com.example.myapplication.ui.screen.DashboardScreen
 import com.example.myapplication.ui.screen.HandScreen
 import com.example.myapplication.ui.screen.StatusScreen
 import com.example.myapplication.ui.screen.VoiceControlScreen
+import com.example.myapplication.ui.screen.DemoScreen
 
 private const val VOICE_CONTROL_ROUTE = "voice_control"
 private const val SETTINGS_ROUTE = "connection_settings"
+
+private const val DEMO_ROUTE = "demo"
 
 data class BottomNavItem(
     val route: String,
@@ -130,7 +133,8 @@ fun AppNavigation() {
                             onGoToHand = { navController.navigate(AppRoutes.HAND) },
                             onGoToCamera = { navController.navigate(AppRoutes.CAMERA) },
                             onGoToAssistant = { navController.navigate(AppRoutes.ASSISTANT) },
-                            onGoToVoice = { navController.navigate(VOICE_CONTROL_ROUTE) }
+                            onGoToVoice = { navController.navigate(VOICE_CONTROL_ROUTE) },
+                            onGoToDemo = { navController.navigate(DEMO_ROUTE) }
                         )
                     }
 
@@ -149,6 +153,12 @@ fun AppNavigation() {
 
                     composable(VOICE_CONTROL_ROUTE) {
                         VoiceControlScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(DEMO_ROUTE) {
+                        DemoScreen(
                             onBack = { navController.popBackStack() }
                         )
                     }
