@@ -8,7 +8,7 @@ from api.routes.hand import router as hand_router
 from api.routes.camera import router as camera_router
 from api.routes.system import router as system_router
 from api.routes.voice import router as voice_router
-
+from api.routes.capacitive import router as capacitive_router
 
 ENABLE_ASSISTANT = True
 
@@ -39,7 +39,7 @@ app.include_router(hand_router, prefix="/hand", tags=["Hand"])
 app.include_router(camera_router, prefix="/camera", tags=["Camera"])
 app.include_router(system_router, prefix="/system", tags=["System"])
 app.include_router(voice_router, prefix="/voice", tags=["Voice"])
-
+app.include_router(capacitive_router, prefix="/capacitive", tags=["capacitive"])
 if ENABLE_ASSISTANT:
     app.include_router(assistant_router, prefix="/assistant", tags=["Assistant"])
 
