@@ -584,8 +584,8 @@ private fun HeroHandCard(
                     )
 
                     HeroMetric(
-                        title = "I2C",
-                        subtitle = "backend",
+                        title = "Control",
+                        subtitle = "Absoluto",
                         compact = compact,
                         modifier = Modifier.weight(1f)
                     )

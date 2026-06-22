@@ -40,9 +40,12 @@ import com.example.myapplication.ui.screen.HandScreen
 import com.example.myapplication.ui.screen.StatusScreen
 import com.example.myapplication.ui.screen.VoiceControlScreen
 import com.example.myapplication.ui.screen.DemoScreen
+import com.example.myapplication.ui.screen.DiagnosticScreen
+
 
 private const val VOICE_CONTROL_ROUTE = "voice_control"
 private const val SETTINGS_ROUTE = "connection_settings"
+private const val DIAGNOSTIC_ROUTE = "diagnostic"
 
 private const val DEMO_ROUTE = "demo"
 
@@ -137,10 +140,16 @@ fun AppNavigation() {
                             onGoToDemo = { navController.navigate(DEMO_ROUTE) }
                         )
                     }
+                    composable(DIAGNOSTIC_ROUTE) {
+                        DiagnosticScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
 
                     composable(AppRoutes.STATUS) {
                         StatusScreen(
-                            onBack = { navController.navigate(AppRoutes.DASHBOARD) }
+                            onBack = { navController.navigate(AppRoutes.DASHBOARD) },
+                            onOpenDiagnostics = { navController.navigate(DIAGNOSTIC_ROUTE) }
                         )
                     }
 

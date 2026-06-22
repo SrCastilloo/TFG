@@ -3,6 +3,7 @@ package com.example.myapplication.data.remote
 import com.example.myapplication.data.remote.dto.BasicResponseDto
 import com.example.myapplication.data.remote.dto.HandPositionsDto
 import com.example.myapplication.data.remote.dto.SystemInfoDto
+import com.example.myapplication.data.remote.dto.HealthDto
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -20,6 +21,9 @@ interface TfgApiService {
 
     @GET("hand/positions")
     suspend fun getHandPositions(): HandPositionsDto
+
+    @GET("health/")
+    suspend fun getHealth(): HealthDto
 
     @POST("modes/hand")
     suspend fun setModeHand(): BasicResponseDto

@@ -188,7 +188,7 @@ fun DashboardScreen(
     val secondaryItems = listOf(
         DashboardItem(
             title = "Estado",
-            subtitle = "Comprueba conexión, modo actual y disponibilidad del sistema.",
+            subtitle = "Comprueba conexión, modo actual y disponibilidad.",
             emoji = "💡",
             badge = "Revisión",
             gradient = StatusGradient,
@@ -213,7 +213,7 @@ fun DashboardScreen(
 
         DashboardItem(
             title = "Demo del sistema",
-            subtitle = "Ejecuta secuencias automáticas para enseñar el funcionamiento completo.",
+            subtitle = "Ejecuta acciones automáticas y enseña los movimientos.",
             emoji = "🎬",
             badge = "Demo",
             gradient = DemoGradient,

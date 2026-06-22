@@ -9,6 +9,7 @@ import com.example.myapplication.data.remote.dto.AssistantChatRequestDto
 import com.example.myapplication.data.remote.dto.AssistantChatResponseDto
 import com.example.myapplication.data.remote.dto.VoiceDetectResponse
 import com.example.myapplication.data.remote.dto.VoiceMoveResponse
+import com.example.myapplication.data.remote.dto.HealthDto
 
 class TfgRepository(
     private val apiService: TfgApiService
@@ -19,6 +20,10 @@ class TfgRepository(
 
     suspend fun getHandPositions(): HandPositionsDto {
         return apiService.getHandPositions()
+    }
+
+    suspend fun getHealth(): HealthDto {
+        return apiService.getHealth()
     }
 
     suspend fun setModeHand(): BasicResponseDto {

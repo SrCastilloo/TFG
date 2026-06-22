@@ -122,6 +122,7 @@ private val DetailsGradient = Brush.linearGradient(
 @Composable
 fun StatusScreen(
     onBack: () -> Unit,
+    onOpenDiagnostics: () -> Unit = {},
     viewModel: StatusViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -168,7 +169,8 @@ fun StatusScreen(
                     onHandMode = { viewModel.setModeHand() },
                     onVoiceMode = { viewModel.setModeVoice() },
                     onCameraMode = { viewModel.setModeCamera() },
-                    onMoveToPosition = { viewModel.moveToPosition(it) }
+                    onMoveToPosition = { viewModel.moveToPosition(it) },
+                    onOpenDiagnostics = onOpenDiagnostics
                 )
             } else {
                 StatusPortraitContent(
@@ -192,7 +194,8 @@ fun StatusScreen(
                     onHandMode = { viewModel.setModeHand() },
                     onVoiceMode = { viewModel.setModeVoice() },
                     onCameraMode = { viewModel.setModeCamera() },
-                    onMoveToPosition = { viewModel.moveToPosition(it) }
+                    onMoveToPosition = { viewModel.moveToPosition(it) },
+                    onOpenDiagnostics = onOpenDiagnostics
                 )
             }
 
@@ -229,7 +232,9 @@ private fun StatusPortraitContent(
     onHandMode: () -> Unit,
     onVoiceMode: () -> Unit,
     onCameraMode: () -> Unit,
-    onMoveToPosition: (Int) -> Unit
+    onMoveToPosition: (Int) -> Unit,
+    onOpenDiagnostics: () -> Unit
+
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
@@ -390,6 +395,13 @@ private fun StatusPortraitContent(
         }
 
         item(span = { GridItemSpan(maxLineSpan) }) {
+            DiagnosticEntryCard(
+                onClick = onOpenDiagnostics,
+                compact = compact
+            )
+        }
+
+        item(span = { GridItemSpan(maxLineSpan) }) {
             SectionTitle(
                 title = "Detalles del sistema",
                 subtitle = "Información técnica útil",
@@ -430,7 +442,8 @@ private fun StatusLandscapeContent(
     onHandMode: () -> Unit,
     onVoiceMode: () -> Unit,
     onCameraMode: () -> Unit,
-    onMoveToPosition: (Int) -> Unit
+    onMoveToPosition: (Int) -> Unit,
+    onOpenDiagnostics: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -547,7 +560,7 @@ private fun StatusLandscapeContent(
             item {
                 OverviewCard(
                     title = "Entorno",
-                    value = if (simulation == true) "Simulación" else "Real",
+                    value = if (simulation == true) "Simulación" else "Mano funcionando",
                     emoji = "⚙️",
                     background = Brush.linearGradient(listOf(Color(0xFFA7F3D0), Color(0xFF5EEAD4))),
                     compact = true
@@ -1781,4 +1794,104 @@ private fun heroDescription(
     val modeText = friendlyMode(mode)
     val environment = if (simulation == true) "simulación" else "entorno real"
     return "Sistema en modo $modeText trabajando en $environment."
+}
+
+
+@Composable
+private fun DiagnosticEntryCard(
+    onClick: () -> Unit,
+    compact: Boolean
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(if (compact) 22.dp else 28.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+    ) {
+        Box(
+            modifier = Modifier
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            AccentCyan,
+                            AccentBlue,
+                            AccentViolet
+                        )
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.18f),
+                    shape = RoundedCornerShape(if (compact) 22.dp else 28.dp)
+                )
+                .padding(if (compact) 16.dp else 20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp)
+            ) {
+                Text(
+                    text = "🧪",
+                    style = if (compact) {
+                        MaterialTheme.typography.headlineSmall
+                    } else {
+                        MaterialTheme.typography.headlineMedium
+                    }
+                )
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Diagnóstico del sistema",
+                        color = TextPrimary,
+                        style = if (compact) {
+                            MaterialTheme.typography.titleMedium
+                        } else {
+                            MaterialTheme.typography.titleLarge
+                        },
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Comprueba backend, conexión, mano, cámara y voz.",
+                        color = Color.White.copy(alpha = 0.9f),
+                        style = if (compact) {
+                            MaterialTheme.typography.bodySmall
+                        } else {
+                            MaterialTheme.typography.bodyMedium
+                        },
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = Color.White.copy(alpha = 0.18f)
+                ) {
+                    Text(
+                        text = "Abrir",
+                        modifier = Modifier.padding(
+                            horizontal = if (compact) 10.dp else 12.dp,
+                            vertical = if (compact) 6.dp else 8.dp
+                        ),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = if (compact) {
+                            MaterialTheme.typography.bodySmall
+                        } else {
+                            MaterialTheme.typography.bodyMedium
+                        }
+                    )
+                }
+            }
+        }
+    }
 }
