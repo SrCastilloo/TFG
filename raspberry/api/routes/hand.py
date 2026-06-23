@@ -20,9 +20,9 @@ class FullGripRequest(BaseModel):
     required_sensors: Optional[List[str]] = None
     start_from_open: bool = True
     open_wait_seconds: float = 3.0
-    close_pulse_seconds: float = 0.08
-    pause_between_pulses: float = 0.20
-
+    close_step: int = 30
+    step_settle_seconds: float = 0.15
+    pause_between_steps: float = 0.15
 
 
 class SafeGripRequest(BaseModel):
@@ -93,8 +93,8 @@ def full_grip(data: FullGripRequest, request: Request):
         required_sensors=data.required_sensors,
         start_from_open=data.start_from_open,
         open_wait_seconds=data.open_wait_seconds,
-        close_pulse_seconds=data.close_pulse_seconds,
-        pause_between_pulses=data.pause_between_pulses
+        close_step=data.close_step,
+        step_settle_seconds=data.step_settle_seconds,
+        pause_between_steps=data.pause_between_steps
     )
-
 

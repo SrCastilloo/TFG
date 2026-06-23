@@ -706,30 +706,24 @@ class HandSystemController:
         required_sensors: Optional[List[str]] = None,
         start_from_open: bool = True,
         open_wait_seconds: float = 3.0,
-        close_pulse_seconds: float = 0.08,
-        pause_between_pulses: float = 0.20
+        close_step: int = 30,
+        step_settle_seconds: float = 0.15,
+        pause_between_steps: float = 0.15
     ) -> Dict[str, Any]:
         """
         Ejecuta un agarre completo progresivo.
 
-        A diferencia del agarre seguro, este método NO se detiene con el primer
-        contacto. Sigue cerrando la mano poco a poco hasta que todos los sensores
-        válidos detecten contacto.
-
-        Sensores ignorados:
-        ignored_sensors=["ring"]
-
-        Sensores obligatorios:
-        Si required_sensors es None, se usan todos los sensores leídos excepto los ignorados.
-        Si required_sensors tiene valor, solo se exigen esos sensores.
+        La mano parte de posición abierta y va cerrando poco a poco por pasos.
+        Solo finaliza correctamente cuando todos los sensores válidos detectan contacto.
         """
 
-        max_seconds = max(0.5, min(float(max_seconds), 20.0))
+        max_seconds = max(0.5, min(float(max_seconds), 25.0))
         poll_interval = max(0.03, min(float(poll_interval), 0.5))
         consecutive_reads = max(1, min(int(consecutive_reads), 5))
         open_wait_seconds = max(0.0, min(float(open_wait_seconds), 8.0))
-        close_pulse_seconds = max(0.03, min(float(close_pulse_seconds), 0.8))
-        pause_between_pulses = max(0.03, min(float(pause_between_pulses), 1.0))
+        close_step = max(5, min(int(close_step), 300))
+        step_settle_seconds = max(0.05, min(float(step_settle_seconds), 1.0))
+        pause_between_steps = max(0.03, min(float(pause_between_steps), 1.0))
 
         ignored_sensors = ignored_sensors or []
         ignored_set = set(sensor.strip().lower() for sensor in ignored_sensors)
@@ -742,74 +736,36 @@ class HandSystemController:
                 if sensor.strip()
             ]
 
-        close_command_template = {
-            "ring": "close",
-            "middle": "close",
-            "index": "close",
-            "thumb0": "close",
-            "thumb1": "close",
-        }
-
         total_start_time = time.monotonic()
 
+        close_command_template = {
+            "ring": "step_close",
+            "middle": "step_close",
+            "index": "step_close",
+            "thumb0": "step_close",
+            "thumb1": "step_close",
+        }
+
         if self.simulation:
-            simulated_capacitive = {
-                "ok": True,
-                "available": True,
-                "simulation": True,
-                "status": {
-                    "pinky": 1900,
-                    "ring": 2500,
-                    "middle": 1600,
-                    "index": 2200,
-                    "thumb": 1900,
-                    "palm": 2100,
-                },
-                "heights": {
-                    "pinky": 1700,
-                    "ring": 1700,
-                    "middle": 1200,
-                    "index": 1700,
-                    "thumb": 1700,
-                    "palm": 1700,
-                },
-                "contacts": {
-                    "pinky": True,
-                    "ring": True,
-                    "middle": True,
-                    "index": True,
-                    "thumb": True,
-                    "palm": True,
-                },
-                "contact_count": 6,
-                "message": "Simulación: todos los contactos detectados.",
-            }
-
-            progress = self._build_full_grip_progress(
-                contacts=simulated_capacitive["contacts"],
-                ignored_sensors=ignored_set,
-                required_sensors=normalized_required_sensors
-            )
-
             return {
                 "ok": True,
-                "message": "Simulación: agarre completo finalizado. Todos los sensores válidos detectan contacto.",
+                "message": "Simulación: agarre completo progresivo finalizado.",
                 "moved": True,
                 "stopped": True,
-                "all_contacts_detected": progress["all_contacts_detected"],
+                "all_contacts_detected": True,
                 "reason": "all_contacts_detected",
                 "elapsed_seconds": 1.5,
-                "active_sensors": progress["active_sensors"],
-                "contact_sensors": progress["contact_sensors"],
-                "missing_sensors": progress["missing_sensors"],
-                "contact_count": progress["contact_count"],
-                "required_contact_count": progress["required_contact_count"],
+                "active_sensors": ["pinky", "middle", "index", "thumb", "palm"],
+                "contact_sensors": ["pinky", "middle", "index", "thumb", "palm"],
+                "missing_sensors": [],
+                "contact_count": 5,
+                "required_contact_count": 5,
                 "ignored_sensors": sorted(list(ignored_set)),
                 "start_from_open": start_from_open,
-                "pulse_count": 6,
-                "close_pulse_seconds": close_pulse_seconds,
+                "step_count": 8,
+                "close_step": close_step,
                 "command": close_command_template,
-                "capacitive": simulated_capacitive,
+                "capacitive": self.refresh_capacitive_status(),
             }
 
         if self.hand is None:
@@ -828,8 +784,8 @@ class HandSystemController:
                 "required_contact_count": 0,
                 "ignored_sensors": sorted(list(ignored_set)),
                 "start_from_open": start_from_open,
-                "pulse_count": 0,
-                "close_pulse_seconds": close_pulse_seconds,
+                "step_count": 0,
+                "close_step": close_step,
                 "command": close_command_template,
                 "capacitive": None,
             }
@@ -850,21 +806,21 @@ class HandSystemController:
                 "required_contact_count": 0,
                 "ignored_sensors": sorted(list(ignored_set)),
                 "start_from_open": start_from_open,
-                "pulse_count": 0,
-                "close_pulse_seconds": close_pulse_seconds,
+                "step_count": 0,
+                "close_step": close_step,
                 "command": close_command_template,
                 "capacitive": None,
             }
 
         last_capacitive = None
-        pulse_count = 0
+        step_count = 0
 
         try:
             if start_from_open:
                 self.open_hand()
                 time.sleep(open_wait_seconds)
                 self.stop_hand()
-                time.sleep(pause_between_pulses)
+                time.sleep(pause_between_steps)
 
             initial_capacitive = self.refresh_capacitive_status()
             last_capacitive = initial_capacitive
@@ -894,8 +850,8 @@ class HandSystemController:
                     "required_contact_count": 0,
                     "ignored_sensors": sorted(list(ignored_set)),
                     "start_from_open": start_from_open,
-                    "pulse_count": pulse_count,
-                    "close_pulse_seconds": close_pulse_seconds,
+                    "step_count": step_count,
+                    "close_step": close_step,
                     "command": close_command_template,
                     "capacitive": initial_capacitive,
                 }
@@ -918,8 +874,8 @@ class HandSystemController:
                     "required_contact_count": initial_progress["required_contact_count"],
                     "ignored_sensors": sorted(list(ignored_set)),
                     "start_from_open": start_from_open,
-                    "pulse_count": pulse_count,
-                    "close_pulse_seconds": close_pulse_seconds,
+                    "step_count": step_count,
+                    "close_step": close_step,
                     "command": close_command_template,
                     "capacitive": initial_capacitive,
                 }
@@ -928,62 +884,18 @@ class HandSystemController:
             complete_contact_counter = 0
 
             while time.monotonic() - grip_start_time < max_seconds:
-                pulse_count += 1
+                step_count += 1
 
-                # Cierre muy corto: así no cierra del tirón.
-                # move_open_close modifica el diccionario recibido, por eso se manda copia.
-                self.hand.move_open_close(dict(close_command_template))
+                # Cierre real progresivo:
+                # en vez de mandar cerrar hasta el mínimo, solo baja un pequeño paso.
+                step_target = self.hand.step_close(close_step=close_step)
 
-                pulse_start_time = time.monotonic()
+                time.sleep(step_settle_seconds)
 
-                while (
-                    time.monotonic() - pulse_start_time < close_pulse_seconds
-                    and time.monotonic() - grip_start_time < max_seconds
-                ):
-                    time.sleep(poll_interval)
-
-                    capacitive_status = self.refresh_capacitive_status()
-                    last_capacitive = capacitive_status
-
-                    contacts = capacitive_status.get("contacts") or {}
-                    progress = self._build_full_grip_progress(
-                        contacts=contacts,
-                        ignored_sensors=ignored_set,
-                        required_sensors=normalized_required_sensors
-                    )
-
-                    if progress["all_contacts_detected"]:
-                        complete_contact_counter += 1
-
-                        if complete_contact_counter >= consecutive_reads:
-                            self.stop_hand()
-
-                            return {
-                                "ok": True,
-                                "message": "Agarre completo finalizado. Todos los sensores válidos detectan contacto.",
-                                "moved": True,
-                                "stopped": True,
-                                "all_contacts_detected": True,
-                                "reason": "all_contacts_detected",
-                                "elapsed_seconds": round(time.monotonic() - total_start_time, 3),
-                                "active_sensors": progress["active_sensors"],
-                                "contact_sensors": progress["contact_sensors"],
-                                "missing_sensors": progress["missing_sensors"],
-                                "contact_count": progress["contact_count"],
-                                "required_contact_count": progress["required_contact_count"],
-                                "ignored_sensors": sorted(list(ignored_set)),
-                                "start_from_open": start_from_open,
-                                "pulse_count": pulse_count,
-                                "close_pulse_seconds": close_pulse_seconds,
-                                "command": close_command_template,
-                                "capacitive": capacitive_status,
-                            }
-                    else:
-                        complete_contact_counter = 0
-
-                # Fin del pulso: parar y leer otra vez.
+                # Parada breve para evitar que siga arrastrando.
                 self.stop_hand()
-                time.sleep(pause_between_pulses)
+
+                time.sleep(pause_between_steps)
 
                 capacitive_status = self.refresh_capacitive_status()
                 last_capacitive = capacitive_status
@@ -1003,7 +915,7 @@ class HandSystemController:
 
                         return {
                             "ok": True,
-                            "message": "Agarre completo finalizado tras un pulso. Todos los sensores válidos detectan contacto.",
+                            "message": "Agarre completo finalizado. Todos los sensores válidos detectan contacto.",
                             "moved": True,
                             "stopped": True,
                             "all_contacts_detected": True,
@@ -1016,8 +928,9 @@ class HandSystemController:
                             "required_contact_count": progress["required_contact_count"],
                             "ignored_sensors": sorted(list(ignored_set)),
                             "start_from_open": start_from_open,
-                            "pulse_count": pulse_count,
-                            "close_pulse_seconds": close_pulse_seconds,
+                            "step_count": step_count,
+                            "close_step": close_step,
+                            "last_step_target": step_target,
                             "command": close_command_template,
                             "capacitive": capacitive_status,
                         }
@@ -1051,8 +964,8 @@ class HandSystemController:
                 "required_contact_count": final_progress["required_contact_count"],
                 "ignored_sensors": sorted(list(ignored_set)),
                 "start_from_open": start_from_open,
-                "pulse_count": pulse_count,
-                "close_pulse_seconds": close_pulse_seconds,
+                "step_count": step_count,
+                "close_step": close_step,
                 "command": close_command_template,
                 "capacitive": last_capacitive,
             }
@@ -1078,12 +991,11 @@ class HandSystemController:
                 "required_contact_count": 0,
                 "ignored_sensors": sorted(list(ignored_set)),
                 "start_from_open": start_from_open,
-                "pulse_count": pulse_count,
-                "close_pulse_seconds": close_pulse_seconds,
+                "step_count": step_count,
+                "close_step": close_step,
                 "command": close_command_template,
                 "capacitive": last_capacitive,
             }
-
     # -------------------------------------------------------------------------
     # CÁMARA
     # -------------------------------------------------------------------------

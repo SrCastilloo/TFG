@@ -388,6 +388,46 @@ class HandControl:
 		self.__parse_raw_data(raw_data)
 
 
+	def step_close(self, close_step=30, fingers=None):
+		"""
+		Close the hand slowly, moving each finger only a small step
+		towards its minimum configured position.
+
+		It doesn't close completely, but rather to an intermediate position.
+		"""
+
+		if fingers is None:
+			fingers = ["ring", "middle", "index", "thumb0", "thumb1"]
+
+		self.update_status()
+
+		self.__target["command"] = self.__cmd_move
+
+		for finger in ["ring", "middle", "index", "thumb0", "thumb1"]:
+			current_value = self.__status[finger]
+
+			if current_value is None:
+				current_value = self.__target[finger]
+
+			if finger in fingers:
+				close_value = self.__finger_min[finger]
+
+				if current_value > close_value:
+					next_value = max(close_value, current_value - close_step)
+				elif current_value < close_value:
+					next_value = min(close_value, current_value + close_step)
+				else:
+					next_value = current_value
+
+				self.__target[finger] = int(next_value)
+			else:
+				self.__target[finger] = int(current_value)
+
+		self.__send_command()
+
+		return self.get_target()
+
+
 	def move_open_close(self, cmd_values):
 		''' 
 			Moves the hand in an binary way so every finger can be open and closed between the minimum and maximum value. The command doesnt have to include all finger keys. 
