@@ -290,6 +290,230 @@ class HandSystemController:
             "positions": sorted_positions,
             "count": len(sorted_positions),
         }
+    
+
+    def safe_grip(
+        self,
+        max_seconds: float = 4.0,
+        poll_interval: float = 0.15,
+        consecutive_reads: int = 2
+    ) -> Dict[str, Any]:
+        """
+        Cierra la mano hasta detectar contacto con cualquier sensor capacitivo.
+
+        Funcionamiento:
+        1. Comprueba que la mano y los sensores capacitivos están disponibles.
+        2. Si ya hay contacto antes de moverse, no cierra y detiene por seguridad.
+        3. Si no hay contacto, empieza a cerrar la mano.
+        4. Lee los sensores capacitivos en bucle.
+        5. Si detecta contacto varias lecturas seguidas, para la mano.
+        6. Si se alcanza el tiempo máximo, para la mano igualmente.
+        """
+
+        # Valores seguros por si desde la app mandan algo raro
+        max_seconds = max(0.5, min(float(max_seconds), 10.0))
+        poll_interval = max(0.05, min(float(poll_interval), 1.0))
+        consecutive_reads = max(1, min(int(consecutive_reads), 5))
+
+        close_command = {
+            "ring": "close",
+            "middle": "close",
+            "index": "close",
+            "thumb0": "close",
+            "thumb1": "close",
+        }
+
+        if self.simulation:
+            simulated_capacitive = {
+                "ok": True,
+                "available": True,
+                "simulation": True,
+                "status": {
+                    "pinky": 140,
+                    "ring": 2500,
+                    "middle": 70,
+                    "index": 10,
+                    "thumb": 25,
+                    "palm": 240,
+                },
+                "heights": {
+                    "pinky": 1700,
+                    "ring": 1700,
+                    "middle": 1200,
+                    "index": 1700,
+                    "thumb": 1700,
+                    "palm": 1700,
+                },
+                "contacts": {
+                    "pinky": False,
+                    "ring": True,
+                    "middle": False,
+                    "index": False,
+                    "thumb": False,
+                    "palm": False,
+                },
+                "contact_count": 1,
+                "message": "Simulación: contacto detectado.",
+            }
+
+            return {
+                "ok": True,
+                "message": "Simulación: agarre seguro detenido al detectar contacto.",
+                "moved": True,
+                "stopped": True,
+                "contact_detected": True,
+                "reason": "contact_detected",
+                "elapsed_seconds": 0.8,
+                "contact_sensor": "ring",
+                "contact_count": 1,
+                "command": close_command,
+                "capacitive": simulated_capacitive,
+            }
+
+        if self.hand is None:
+            return {
+                "ok": False,
+                "message": "No se puede ejecutar agarre seguro: la mano no está inicializada.",
+                "moved": False,
+                "stopped": False,
+                "contact_detected": False,
+                "reason": "hand_not_available",
+                "elapsed_seconds": 0,
+                "contact_sensor": None,
+                "contact_count": 0,
+                "command": close_command,
+                "capacitive": None,
+            }
+
+        if not self.capacitive_available or self.capacitive is None:
+            return {
+                "ok": False,
+                "message": "No se puede ejecutar agarre seguro: sensores capacitivos no disponibles.",
+                "moved": False,
+                "stopped": False,
+                "contact_detected": False,
+                "reason": "capacitive_not_available",
+                "elapsed_seconds": 0,
+                "contact_sensor": None,
+                "contact_count": 0,
+                "command": close_command,
+                "capacitive": None,
+            }
+
+        start_time = time.monotonic()
+        last_capacitive = None
+
+        try:
+            # Primera lectura antes de mover, por seguridad
+            initial_capacitive = self.refresh_capacitive_status()
+            last_capacitive = initial_capacitive
+
+            initial_contacts = initial_capacitive.get("contacts") or {}
+            initial_contact_count = initial_capacitive.get("contact_count", 0)
+
+            if initial_contact_count > 0:
+                self.stop_hand()
+
+                contact_sensor = self._first_contact_sensor(initial_contacts)
+
+                return {
+                    "ok": True,
+                    "message": "Contacto detectado antes de cerrar. Mano detenida por seguridad.",
+                    "moved": False,
+                    "stopped": True,
+                    "contact_detected": True,
+                    "reason": "initial_contact",
+                    "elapsed_seconds": round(time.monotonic() - start_time, 3),
+                    "contact_sensor": contact_sensor,
+                    "contact_count": initial_contact_count,
+                    "command": close_command,
+                    "capacitive": initial_capacitive,
+                }
+
+            # Empieza a cerrar la mano
+            self.hand.move_open_close(close_command)
+
+            consecutive_contact_counter = 0
+
+            while time.monotonic() - start_time < max_seconds:
+                time.sleep(poll_interval)
+
+                capacitive_status = self.refresh_capacitive_status()
+                last_capacitive = capacitive_status
+
+                contacts = capacitive_status.get("contacts") or {}
+                contact_count = capacitive_status.get("contact_count", 0)
+
+                if contact_count > 0:
+                    consecutive_contact_counter += 1
+
+                    if consecutive_contact_counter >= consecutive_reads:
+                        self.stop_hand()
+
+                        contact_sensor = self._first_contact_sensor(contacts)
+
+                        return {
+                            "ok": True,
+                            "message": "Contacto detectado. Mano detenida automáticamente.",
+                            "moved": True,
+                            "stopped": True,
+                            "contact_detected": True,
+                            "reason": "contact_detected",
+                            "elapsed_seconds": round(time.monotonic() - start_time, 3),
+                            "contact_sensor": contact_sensor,
+                            "contact_count": contact_count,
+                            "command": close_command,
+                            "capacitive": capacitive_status,
+                        }
+                else:
+                    consecutive_contact_counter = 0
+
+            # Si no se detecta contacto, paramos por tiempo máximo
+            self.stop_hand()
+
+            return {
+                "ok": True,
+                "message": "Tiempo máximo alcanzado sin contacto. Mano detenida por seguridad.",
+                "moved": True,
+                "stopped": True,
+                "contact_detected": False,
+                "reason": "timeout",
+                "elapsed_seconds": round(time.monotonic() - start_time, 3),
+                "contact_sensor": None,
+                "contact_count": 0,
+                "command": close_command,
+                "capacitive": last_capacitive,
+            }
+
+        except Exception as e:
+            try:
+                self.stop_hand()
+            except Exception:
+                pass
+
+            return {
+                "ok": False,
+                "message": f"Error durante el agarre seguro: {str(e)}",
+                "moved": True,
+                "stopped": True,
+                "contact_detected": False,
+                "reason": "error",
+                "elapsed_seconds": round(time.monotonic() - start_time, 3),
+                "contact_sensor": None,
+                "contact_count": 0,
+                "command": close_command,
+                "capacitive": last_capacitive,
+            }
+
+    def _first_contact_sensor(self, contacts: Dict[str, bool]) -> Optional[str]:
+        """
+        Devuelve el primer sensor que está detectando contacto.
+        """
+        for sensor, has_contact in contacts.items():
+            if has_contact:
+                return sensor
+
+        return None
 
     # -------------------------------------------------------------------------
     # CÁMARA
