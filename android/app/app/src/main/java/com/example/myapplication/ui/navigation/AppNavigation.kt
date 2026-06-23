@@ -41,13 +41,15 @@ import com.example.myapplication.ui.screen.StatusScreen
 import com.example.myapplication.ui.screen.VoiceControlScreen
 import com.example.myapplication.ui.screen.DemoScreen
 import com.example.myapplication.ui.screen.DiagnosticScreen
-
+import com.example.myapplication.ui.screen.CapacitiveScreen
 
 private const val VOICE_CONTROL_ROUTE = "voice_control"
 private const val SETTINGS_ROUTE = "connection_settings"
 private const val DIAGNOSTIC_ROUTE = "diagnostic"
 
 private const val DEMO_ROUTE = "demo"
+
+private const val CAPACITIVE_ROUTE = "capacitive"
 
 data class BottomNavItem(
     val route: String,
@@ -140,6 +142,7 @@ fun AppNavigation() {
                             onGoToDemo = { navController.navigate(DEMO_ROUTE) }
                         )
                     }
+
                     composable(DIAGNOSTIC_ROUTE) {
                         DiagnosticScreen(
                             onBack = { navController.popBackStack() }
@@ -149,7 +152,13 @@ fun AppNavigation() {
                     composable(AppRoutes.STATUS) {
                         StatusScreen(
                             onBack = { navController.navigate(AppRoutes.DASHBOARD) },
-                            onOpenDiagnostics = { navController.navigate(DIAGNOSTIC_ROUTE) }
+                            onOpenDiagnostics = { navController.navigate(DIAGNOSTIC_ROUTE) },
+                            onOpenCapacitive = { navController.navigate(CAPACITIVE_ROUTE) }
+                        )
+                    }
+                    composable(CAPACITIVE_ROUTE) {
+                        CapacitiveScreen(
+                            onBack = { navController.popBackStack() }
                         )
                     }
 

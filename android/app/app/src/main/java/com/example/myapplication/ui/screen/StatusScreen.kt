@@ -123,6 +123,7 @@ private val DetailsGradient = Brush.linearGradient(
 fun StatusScreen(
     onBack: () -> Unit,
     onOpenDiagnostics: () -> Unit = {},
+    onOpenCapacitive: () -> Unit = {},
     viewModel: StatusViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -170,7 +171,8 @@ fun StatusScreen(
                     onVoiceMode = { viewModel.setModeVoice() },
                     onCameraMode = { viewModel.setModeCamera() },
                     onMoveToPosition = { viewModel.moveToPosition(it) },
-                    onOpenDiagnostics = onOpenDiagnostics
+                    onOpenDiagnostics = onOpenDiagnostics,
+                    onOpenCapacitive = onOpenCapacitive
                 )
             } else {
                 StatusPortraitContent(
@@ -195,7 +197,8 @@ fun StatusScreen(
                     onVoiceMode = { viewModel.setModeVoice() },
                     onCameraMode = { viewModel.setModeCamera() },
                     onMoveToPosition = { viewModel.moveToPosition(it) },
-                    onOpenDiagnostics = onOpenDiagnostics
+                    onOpenDiagnostics = onOpenDiagnostics,
+                    onOpenCapacitive = onOpenCapacitive
                 )
             }
 
@@ -233,7 +236,8 @@ private fun StatusPortraitContent(
     onVoiceMode: () -> Unit,
     onCameraMode: () -> Unit,
     onMoveToPosition: (Int) -> Unit,
-    onOpenDiagnostics: () -> Unit
+    onOpenDiagnostics: () -> Unit,
+    onOpenCapacitive: () -> Unit
 
 ) {
     LazyVerticalGrid(
@@ -400,6 +404,12 @@ private fun StatusPortraitContent(
                 compact = compact
             )
         }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            CapacitiveEntryCard(
+                onClick = onOpenCapacitive,
+                compact = compact
+            )
+        }
 
         item(span = { GridItemSpan(maxLineSpan) }) {
             SectionTitle(
@@ -443,7 +453,8 @@ private fun StatusLandscapeContent(
     onVoiceMode: () -> Unit,
     onCameraMode: () -> Unit,
     onMoveToPosition: (Int) -> Unit,
-    onOpenDiagnostics: () -> Unit
+    onOpenDiagnostics: () -> Unit,
+    onOpenCapacitive: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -515,6 +526,20 @@ private fun StatusLandscapeContent(
 
             item {
                 ActionHistorySection(
+                    compact = true
+                )
+            }
+
+            item {
+                DiagnosticEntryCard(
+                    onClick = onOpenDiagnostics,
+                    compact = true
+                )
+            }
+
+            item {
+                CapacitiveEntryCard(
+                    onClick = onOpenCapacitive,
                     compact = true
                 )
             }
@@ -1861,6 +1886,107 @@ private fun DiagnosticEntryCard(
 
                     Text(
                         text = "Comprueba backend, conexión, mano, cámara y voz.",
+                        color = Color.White.copy(alpha = 0.9f),
+                        style = if (compact) {
+                            MaterialTheme.typography.bodySmall
+                        } else {
+                            MaterialTheme.typography.bodyMedium
+                        },
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = Color.White.copy(alpha = 0.18f)
+                ) {
+                    Text(
+                        text = "Abrir",
+                        modifier = Modifier.padding(
+                            horizontal = if (compact) 10.dp else 12.dp,
+                            vertical = if (compact) 6.dp else 8.dp
+                        ),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = if (compact) {
+                            MaterialTheme.typography.bodySmall
+                        } else {
+                            MaterialTheme.typography.bodyMedium
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+
+@Composable
+private fun CapacitiveEntryCard(
+    onClick: () -> Unit,
+    compact: Boolean
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(if (compact) 22.dp else 28.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+    ) {
+        Box(
+            modifier = Modifier
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            AccentTeal,
+                            AccentBlue,
+                            AccentViolet
+                        )
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.18f),
+                    shape = RoundedCornerShape(if (compact) 22.dp else 28.dp)
+                )
+                .padding(if (compact) 16.dp else 20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp)
+            ) {
+                Text(
+                    text = "✋",
+                    style = if (compact) {
+                        MaterialTheme.typography.headlineSmall
+                    } else {
+                        MaterialTheme.typography.headlineMedium
+                    }
+                )
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Sensores capacitivos",
+                        color = TextPrimary,
+                        style = if (compact) {
+                            MaterialTheme.typography.titleMedium
+                        } else {
+                            MaterialTheme.typography.titleLarge
+                        },
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Consulta el feedback táctil de dedos y palma.",
                         color = Color.White.copy(alpha = 0.9f),
                         style = if (compact) {
                             MaterialTheme.typography.bodySmall

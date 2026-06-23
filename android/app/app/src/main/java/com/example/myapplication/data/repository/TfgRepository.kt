@@ -10,6 +10,10 @@ import com.example.myapplication.data.remote.dto.AssistantChatResponseDto
 import com.example.myapplication.data.remote.dto.VoiceDetectResponse
 import com.example.myapplication.data.remote.dto.VoiceMoveResponse
 import com.example.myapplication.data.remote.dto.HealthDto
+import com.example.myapplication.data.remote.dto.CapacitiveDto
+import com.example.myapplication.data.remote.dto.SafeGripDto
+import com.example.myapplication.data.remote.dto.SafeGripRequest
+
 
 class TfgRepository(
     private val apiService: TfgApiService
@@ -71,4 +75,23 @@ class TfgRepository(
     suspend fun detectVoiceAndMove(): VoiceMoveResponse {
         return apiService.detectVoiceAndMove()
     }
+
+    suspend fun getCapacitiveStatus(): CapacitiveDto {
+        return apiService.getCapacitiveStatus()
+    }
+
+    suspend fun refreshCapacitiveStatus(): CapacitiveDto {
+        return apiService.refreshCapacitiveStatus()
+    }
+
+    suspend fun safeGrip(): SafeGripDto {
+        return apiService.safeGrip(
+            SafeGripRequest(
+                max_seconds = 4.0,
+                poll_interval = 0.15,
+                consecutive_reads = 2
+            )
+        )
+    }
+
 }
