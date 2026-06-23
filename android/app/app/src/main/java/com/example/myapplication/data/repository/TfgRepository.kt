@@ -89,7 +89,8 @@ class TfgRepository(
             SafeGripRequest(
                 max_seconds = 4.0,
                 poll_interval = 0.15,
-                consecutive_reads = 2
+                consecutive_reads = 2,
+                ignored_sensors = listOf("ring")
             )
         )
     }
