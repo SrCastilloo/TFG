@@ -13,10 +13,16 @@ class ManualMoveRequest(BaseModel):
 
 
 class SafeGripRequest(BaseModel):
-    max_seconds: float = 4.0
-    poll_interval: float = 0.15
+    max_seconds: float = 6.0
+    poll_interval: float = 0.08
     consecutive_reads: int = 2
     ignored_sensors: List[str] = Field(default_factory=list)
+    start_from_open: bool = True
+    open_wait_seconds: float = 3.0
+    close_pulse_seconds: float = 0.20
+    pause_between_pulses: float = 0.10
+
+
 
 @router.post("/open")
 def open_hand(request: Request):
@@ -55,5 +61,9 @@ def safe_grip(data: SafeGripRequest, request: Request):
         max_seconds=data.max_seconds,
         poll_interval=data.poll_interval,
         consecutive_reads=data.consecutive_reads,
-        ignored_sensors=data.ignored_sensors
+        ignored_sensors=data.ignored_sensors,
+        start_from_open=data.start_from_open,
+        open_wait_seconds=data.open_wait_seconds,
+        close_pulse_seconds=data.close_pulse_seconds,
+        pause_between_pulses=data.pause_between_pulses
     )
