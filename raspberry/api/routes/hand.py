@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
-from pydantic import BaseModel
-from typing import Dict
+from pydantic import BaseModel, Field
+from typing import Dict, List
 
 
 router = APIRouter()
@@ -16,7 +16,7 @@ class SafeGripRequest(BaseModel):
     max_seconds: float = 4.0
     poll_interval: float = 0.15
     consecutive_reads: int = 2
-
+    ignored_sensors: List[str] = Field(default_factory=list)
 
 @router.post("/open")
 def open_hand(request: Request):
@@ -54,5 +54,6 @@ def safe_grip(data: SafeGripRequest, request: Request):
     return controller.safe_grip(
         max_seconds=data.max_seconds,
         poll_interval=data.poll_interval,
-        consecutive_reads=data.consecutive_reads
+        consecutive_reads=data.consecutive_reads,
+        ignored_sensors=data.ignored_sensors
     )

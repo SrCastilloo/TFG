@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from core.state import SystemMode
 from configparser import ConfigParser
@@ -296,24 +296,22 @@ class HandSystemController:
         self,
         max_seconds: float = 4.0,
         poll_interval: float = 0.15,
-        consecutive_reads: int = 2
+        consecutive_reads: int = 2,
+        ignored_sensors: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Cierra la mano hasta detectar contacto con cualquier sensor capacitivo.
 
-        Funcionamiento:
-        1. Comprueba que la mano y los sensores capacitivos están disponibles.
-        2. Si ya hay contacto antes de moverse, no cierra y detiene por seguridad.
-        3. Si no hay contacto, empieza a cerrar la mano.
-        4. Lee los sensores capacitivos en bucle.
-        5. Si detecta contacto varias lecturas seguidas, para la mano.
-        6. Si se alcanza el tiempo máximo, para la mano igualmente.
+        Permite ignorar sensores defectuosos. Por ejemplo:
+        ignored_sensors=["ring"]
         """
 
-        # Valores seguros por si desde la app mandan algo raro
         max_seconds = max(0.5, min(float(max_seconds), 10.0))
         poll_interval = max(0.05, min(float(poll_interval), 1.0))
         consecutive_reads = max(1, min(int(consecutive_reads), 5))
+
+        ignored_sensors = ignored_sensors or []
+        ignored_set = set(sensor.strip().lower() for sensor in ignored_sensors)
 
         close_command = {
             "ring": "close",
@@ -332,7 +330,7 @@ class HandSystemController:
                     "pinky": 140,
                     "ring": 2500,
                     "middle": 70,
-                    "index": 10,
+                    "index": 2200,
                     "thumb": 25,
                     "palm": 240,
                 },
@@ -348,24 +346,33 @@ class HandSystemController:
                     "pinky": False,
                     "ring": True,
                     "middle": False,
-                    "index": False,
+                    "index": True,
                     "thumb": False,
                     "palm": False,
                 },
-                "contact_count": 1,
+                "contact_count": 2,
                 "message": "Simulación: contacto detectado.",
             }
+
+            filtered_contacts = self._filter_ignored_contacts(
+                simulated_capacitive["contacts"],
+                ignored_set
+            )
+
+            contact_count = sum(1 for value in filtered_contacts.values() if value)
+            contact_sensor = self._first_contact_sensor(filtered_contacts)
 
             return {
                 "ok": True,
                 "message": "Simulación: agarre seguro detenido al detectar contacto.",
                 "moved": True,
                 "stopped": True,
-                "contact_detected": True,
-                "reason": "contact_detected",
+                "contact_detected": contact_count > 0,
+                "reason": "contact_detected" if contact_count > 0 else "timeout",
                 "elapsed_seconds": 0.8,
-                "contact_sensor": "ring",
-                "contact_count": 1,
+                "contact_sensor": contact_sensor,
+                "contact_count": contact_count,
+                "ignored_sensors": sorted(list(ignored_set)),
                 "command": close_command,
                 "capacitive": simulated_capacitive,
             }
@@ -381,6 +388,7 @@ class HandSystemController:
                 "elapsed_seconds": 0,
                 "contact_sensor": None,
                 "contact_count": 0,
+                "ignored_sensors": sorted(list(ignored_set)),
                 "command": close_command,
                 "capacitive": None,
             }
@@ -396,6 +404,7 @@ class HandSystemController:
                 "elapsed_seconds": 0,
                 "contact_sensor": None,
                 "contact_count": 0,
+                "ignored_sensors": sorted(list(ignored_set)),
                 "command": close_command,
                 "capacitive": None,
             }
@@ -404,12 +413,12 @@ class HandSystemController:
         last_capacitive = None
 
         try:
-            # Primera lectura antes de mover, por seguridad
             initial_capacitive = self.refresh_capacitive_status()
             last_capacitive = initial_capacitive
 
-            initial_contacts = initial_capacitive.get("contacts") or {}
-            initial_contact_count = initial_capacitive.get("contact_count", 0)
+            raw_initial_contacts = initial_capacitive.get("contacts") or {}
+            initial_contacts = self._filter_ignored_contacts(raw_initial_contacts, ignored_set)
+            initial_contact_count = sum(1 for value in initial_contacts.values() if value)
 
             if initial_contact_count > 0:
                 self.stop_hand()
@@ -426,11 +435,11 @@ class HandSystemController:
                     "elapsed_seconds": round(time.monotonic() - start_time, 3),
                     "contact_sensor": contact_sensor,
                     "contact_count": initial_contact_count,
+                    "ignored_sensors": sorted(list(ignored_set)),
                     "command": close_command,
                     "capacitive": initial_capacitive,
                 }
 
-            # Empieza a cerrar la mano
             self.hand.move_open_close(close_command)
 
             consecutive_contact_counter = 0
@@ -441,8 +450,9 @@ class HandSystemController:
                 capacitive_status = self.refresh_capacitive_status()
                 last_capacitive = capacitive_status
 
-                contacts = capacitive_status.get("contacts") or {}
-                contact_count = capacitive_status.get("contact_count", 0)
+                raw_contacts = capacitive_status.get("contacts") or {}
+                contacts = self._filter_ignored_contacts(raw_contacts, ignored_set)
+                contact_count = sum(1 for value in contacts.values() if value)
 
                 if contact_count > 0:
                     consecutive_contact_counter += 1
@@ -462,13 +472,13 @@ class HandSystemController:
                             "elapsed_seconds": round(time.monotonic() - start_time, 3),
                             "contact_sensor": contact_sensor,
                             "contact_count": contact_count,
+                            "ignored_sensors": sorted(list(ignored_set)),
                             "command": close_command,
                             "capacitive": capacitive_status,
                         }
                 else:
                     consecutive_contact_counter = 0
 
-            # Si no se detecta contacto, paramos por tiempo máximo
             self.stop_hand()
 
             return {
@@ -481,6 +491,7 @@ class HandSystemController:
                 "elapsed_seconds": round(time.monotonic() - start_time, 3),
                 "contact_sensor": None,
                 "contact_count": 0,
+                "ignored_sensors": sorted(list(ignored_set)),
                 "command": close_command,
                 "capacitive": last_capacitive,
             }
@@ -501,9 +512,11 @@ class HandSystemController:
                 "elapsed_seconds": round(time.monotonic() - start_time, 3),
                 "contact_sensor": None,
                 "contact_count": 0,
+                "ignored_sensors": sorted(list(ignored_set)),
                 "command": close_command,
                 "capacitive": last_capacitive,
             }
+    
 
     def _first_contact_sensor(self, contacts: Dict[str, bool]) -> Optional[str]:
         """
@@ -514,6 +527,23 @@ class HandSystemController:
                 return sensor
 
         return None
+    
+    
+    def _filter_ignored_contacts(
+        self,
+        contacts: Dict[str, bool],
+        ignored_sensors
+    ) -> Dict[str, bool]:
+        """
+        Elimina de la lógica de contacto los sensores indicados como ignorados.
+        """
+        filtered_contacts = {}
+
+        for sensor, has_contact in contacts.items():
+            if sensor.lower() not in ignored_sensors:
+                filtered_contacts[sensor] = has_contact
+
+        return filtered_contacts
 
     # -------------------------------------------------------------------------
     # CÁMARA
