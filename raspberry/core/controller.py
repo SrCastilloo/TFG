@@ -637,6 +637,452 @@ class HandSystemController:
                 filtered_contacts[sensor] = has_contact
 
         return filtered_contacts
+    
+    
+    
+    def _build_full_grip_progress(
+        self,
+        contacts: Dict[str, bool],
+        ignored_sensors,
+        required_sensors: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Calcula el progreso del agarre completo:
+        - sensores activos
+        - sensores que ya detectan contacto
+        - sensores que faltan
+        - si todos los sensores válidos detectan contacto
+        """
+
+        normalized_contacts = {}
+
+        for sensor, has_contact in contacts.items():
+            normalized_contacts[sensor.lower()] = bool(has_contact)
+
+        if required_sensors is None:
+            active_sensors = [
+                sensor
+                for sensor in normalized_contacts.keys()
+                if sensor not in ignored_sensors
+            ]
+        else:
+            active_sensors = [
+                sensor
+                for sensor in required_sensors
+                if sensor not in ignored_sensors
+            ]
+
+        contact_sensors = []
+        missing_sensors = []
+
+        for sensor in active_sensors:
+            if normalized_contacts.get(sensor, False):
+                contact_sensors.append(sensor)
+            else:
+                missing_sensors.append(sensor)
+
+        required_contact_count = len(active_sensors)
+        contact_count = len(contact_sensors)
+
+        return {
+            "active_sensors": active_sensors,
+            "contact_sensors": contact_sensors,
+            "missing_sensors": missing_sensors,
+            "contact_count": contact_count,
+            "required_contact_count": required_contact_count,
+            "all_contacts_detected": required_contact_count > 0 and contact_count == required_contact_count,
+        }
+    
+
+
+
+
+    def full_grip(
+        self,
+        max_seconds: float = 12.0,
+        poll_interval: float = 0.08,
+        consecutive_reads: int = 2,
+        ignored_sensors: Optional[List[str]] = None,
+        required_sensors: Optional[List[str]] = None,
+        start_from_open: bool = True,
+        open_wait_seconds: float = 3.0,
+        close_pulse_seconds: float = 0.08,
+        pause_between_pulses: float = 0.20
+    ) -> Dict[str, Any]:
+        """
+        Ejecuta un agarre completo progresivo.
+
+        A diferencia del agarre seguro, este método NO se detiene con el primer
+        contacto. Sigue cerrando la mano poco a poco hasta que todos los sensores
+        válidos detecten contacto.
+
+        Sensores ignorados:
+        ignored_sensors=["ring"]
+
+        Sensores obligatorios:
+        Si required_sensors es None, se usan todos los sensores leídos excepto los ignorados.
+        Si required_sensors tiene valor, solo se exigen esos sensores.
+        """
+
+        max_seconds = max(0.5, min(float(max_seconds), 20.0))
+        poll_interval = max(0.03, min(float(poll_interval), 0.5))
+        consecutive_reads = max(1, min(int(consecutive_reads), 5))
+        open_wait_seconds = max(0.0, min(float(open_wait_seconds), 8.0))
+        close_pulse_seconds = max(0.03, min(float(close_pulse_seconds), 0.8))
+        pause_between_pulses = max(0.03, min(float(pause_between_pulses), 1.0))
+
+        ignored_sensors = ignored_sensors or []
+        ignored_set = set(sensor.strip().lower() for sensor in ignored_sensors)
+
+        normalized_required_sensors = None
+        if required_sensors is not None:
+            normalized_required_sensors = [
+                sensor.strip().lower()
+                for sensor in required_sensors
+                if sensor.strip()
+            ]
+
+        close_command_template = {
+            "ring": "close",
+            "middle": "close",
+            "index": "close",
+            "thumb0": "close",
+            "thumb1": "close",
+        }
+
+        total_start_time = time.monotonic()
+
+        if self.simulation:
+            simulated_capacitive = {
+                "ok": True,
+                "available": True,
+                "simulation": True,
+                "status": {
+                    "pinky": 1900,
+                    "ring": 2500,
+                    "middle": 1600,
+                    "index": 2200,
+                    "thumb": 1900,
+                    "palm": 2100,
+                },
+                "heights": {
+                    "pinky": 1700,
+                    "ring": 1700,
+                    "middle": 1200,
+                    "index": 1700,
+                    "thumb": 1700,
+                    "palm": 1700,
+                },
+                "contacts": {
+                    "pinky": True,
+                    "ring": True,
+                    "middle": True,
+                    "index": True,
+                    "thumb": True,
+                    "palm": True,
+                },
+                "contact_count": 6,
+                "message": "Simulación: todos los contactos detectados.",
+            }
+
+            progress = self._build_full_grip_progress(
+                contacts=simulated_capacitive["contacts"],
+                ignored_sensors=ignored_set,
+                required_sensors=normalized_required_sensors
+            )
+
+            return {
+                "ok": True,
+                "message": "Simulación: agarre completo finalizado. Todos los sensores válidos detectan contacto.",
+                "moved": True,
+                "stopped": True,
+                "all_contacts_detected": progress["all_contacts_detected"],
+                "reason": "all_contacts_detected",
+                "elapsed_seconds": 1.5,
+                "active_sensors": progress["active_sensors"],
+                "contact_sensors": progress["contact_sensors"],
+                "missing_sensors": progress["missing_sensors"],
+                "contact_count": progress["contact_count"],
+                "required_contact_count": progress["required_contact_count"],
+                "ignored_sensors": sorted(list(ignored_set)),
+                "start_from_open": start_from_open,
+                "pulse_count": 6,
+                "close_pulse_seconds": close_pulse_seconds,
+                "command": close_command_template,
+                "capacitive": simulated_capacitive,
+            }
+
+        if self.hand is None:
+            return {
+                "ok": False,
+                "message": "No se puede ejecutar agarre completo: la mano no está inicializada.",
+                "moved": False,
+                "stopped": False,
+                "all_contacts_detected": False,
+                "reason": "hand_not_available",
+                "elapsed_seconds": 0,
+                "active_sensors": [],
+                "contact_sensors": [],
+                "missing_sensors": [],
+                "contact_count": 0,
+                "required_contact_count": 0,
+                "ignored_sensors": sorted(list(ignored_set)),
+                "start_from_open": start_from_open,
+                "pulse_count": 0,
+                "close_pulse_seconds": close_pulse_seconds,
+                "command": close_command_template,
+                "capacitive": None,
+            }
+
+        if not self.capacitive_available or self.capacitive is None:
+            return {
+                "ok": False,
+                "message": "No se puede ejecutar agarre completo: sensores capacitivos no disponibles.",
+                "moved": False,
+                "stopped": False,
+                "all_contacts_detected": False,
+                "reason": "capacitive_not_available",
+                "elapsed_seconds": 0,
+                "active_sensors": [],
+                "contact_sensors": [],
+                "missing_sensors": [],
+                "contact_count": 0,
+                "required_contact_count": 0,
+                "ignored_sensors": sorted(list(ignored_set)),
+                "start_from_open": start_from_open,
+                "pulse_count": 0,
+                "close_pulse_seconds": close_pulse_seconds,
+                "command": close_command_template,
+                "capacitive": None,
+            }
+
+        last_capacitive = None
+        pulse_count = 0
+
+        try:
+            if start_from_open:
+                self.open_hand()
+                time.sleep(open_wait_seconds)
+                self.stop_hand()
+                time.sleep(pause_between_pulses)
+
+            initial_capacitive = self.refresh_capacitive_status()
+            last_capacitive = initial_capacitive
+
+            initial_contacts = initial_capacitive.get("contacts") or {}
+            initial_progress = self._build_full_grip_progress(
+                contacts=initial_contacts,
+                ignored_sensors=ignored_set,
+                required_sensors=normalized_required_sensors
+            )
+
+            if initial_progress["required_contact_count"] == 0:
+                self.stop_hand()
+
+                return {
+                    "ok": False,
+                    "message": "No hay sensores válidos para ejecutar el agarre completo.",
+                    "moved": False,
+                    "stopped": True,
+                    "all_contacts_detected": False,
+                    "reason": "no_valid_sensors",
+                    "elapsed_seconds": round(time.monotonic() - total_start_time, 3),
+                    "active_sensors": [],
+                    "contact_sensors": [],
+                    "missing_sensors": [],
+                    "contact_count": 0,
+                    "required_contact_count": 0,
+                    "ignored_sensors": sorted(list(ignored_set)),
+                    "start_from_open": start_from_open,
+                    "pulse_count": pulse_count,
+                    "close_pulse_seconds": close_pulse_seconds,
+                    "command": close_command_template,
+                    "capacitive": initial_capacitive,
+                }
+
+            if initial_progress["all_contacts_detected"]:
+                self.stop_hand()
+
+                return {
+                    "ok": True,
+                    "message": "Todos los sensores válidos ya detectaban contacto antes de cerrar.",
+                    "moved": False,
+                    "stopped": True,
+                    "all_contacts_detected": True,
+                    "reason": "initial_all_contacts",
+                    "elapsed_seconds": round(time.monotonic() - total_start_time, 3),
+                    "active_sensors": initial_progress["active_sensors"],
+                    "contact_sensors": initial_progress["contact_sensors"],
+                    "missing_sensors": initial_progress["missing_sensors"],
+                    "contact_count": initial_progress["contact_count"],
+                    "required_contact_count": initial_progress["required_contact_count"],
+                    "ignored_sensors": sorted(list(ignored_set)),
+                    "start_from_open": start_from_open,
+                    "pulse_count": pulse_count,
+                    "close_pulse_seconds": close_pulse_seconds,
+                    "command": close_command_template,
+                    "capacitive": initial_capacitive,
+                }
+
+            grip_start_time = time.monotonic()
+            complete_contact_counter = 0
+
+            while time.monotonic() - grip_start_time < max_seconds:
+                pulse_count += 1
+
+                # Cierre muy corto: así no cierra del tirón.
+                # move_open_close modifica el diccionario recibido, por eso se manda copia.
+                self.hand.move_open_close(dict(close_command_template))
+
+                pulse_start_time = time.monotonic()
+
+                while (
+                    time.monotonic() - pulse_start_time < close_pulse_seconds
+                    and time.monotonic() - grip_start_time < max_seconds
+                ):
+                    time.sleep(poll_interval)
+
+                    capacitive_status = self.refresh_capacitive_status()
+                    last_capacitive = capacitive_status
+
+                    contacts = capacitive_status.get("contacts") or {}
+                    progress = self._build_full_grip_progress(
+                        contacts=contacts,
+                        ignored_sensors=ignored_set,
+                        required_sensors=normalized_required_sensors
+                    )
+
+                    if progress["all_contacts_detected"]:
+                        complete_contact_counter += 1
+
+                        if complete_contact_counter >= consecutive_reads:
+                            self.stop_hand()
+
+                            return {
+                                "ok": True,
+                                "message": "Agarre completo finalizado. Todos los sensores válidos detectan contacto.",
+                                "moved": True,
+                                "stopped": True,
+                                "all_contacts_detected": True,
+                                "reason": "all_contacts_detected",
+                                "elapsed_seconds": round(time.monotonic() - total_start_time, 3),
+                                "active_sensors": progress["active_sensors"],
+                                "contact_sensors": progress["contact_sensors"],
+                                "missing_sensors": progress["missing_sensors"],
+                                "contact_count": progress["contact_count"],
+                                "required_contact_count": progress["required_contact_count"],
+                                "ignored_sensors": sorted(list(ignored_set)),
+                                "start_from_open": start_from_open,
+                                "pulse_count": pulse_count,
+                                "close_pulse_seconds": close_pulse_seconds,
+                                "command": close_command_template,
+                                "capacitive": capacitive_status,
+                            }
+                    else:
+                        complete_contact_counter = 0
+
+                # Fin del pulso: parar y leer otra vez.
+                self.stop_hand()
+                time.sleep(pause_between_pulses)
+
+                capacitive_status = self.refresh_capacitive_status()
+                last_capacitive = capacitive_status
+
+                contacts = capacitive_status.get("contacts") or {}
+                progress = self._build_full_grip_progress(
+                    contacts=contacts,
+                    ignored_sensors=ignored_set,
+                    required_sensors=normalized_required_sensors
+                )
+
+                if progress["all_contacts_detected"]:
+                    complete_contact_counter += 1
+
+                    if complete_contact_counter >= consecutive_reads:
+                        self.stop_hand()
+
+                        return {
+                            "ok": True,
+                            "message": "Agarre completo finalizado tras un pulso. Todos los sensores válidos detectan contacto.",
+                            "moved": True,
+                            "stopped": True,
+                            "all_contacts_detected": True,
+                            "reason": "all_contacts_detected",
+                            "elapsed_seconds": round(time.monotonic() - total_start_time, 3),
+                            "active_sensors": progress["active_sensors"],
+                            "contact_sensors": progress["contact_sensors"],
+                            "missing_sensors": progress["missing_sensors"],
+                            "contact_count": progress["contact_count"],
+                            "required_contact_count": progress["required_contact_count"],
+                            "ignored_sensors": sorted(list(ignored_set)),
+                            "start_from_open": start_from_open,
+                            "pulse_count": pulse_count,
+                            "close_pulse_seconds": close_pulse_seconds,
+                            "command": close_command_template,
+                            "capacitive": capacitive_status,
+                        }
+                else:
+                    complete_contact_counter = 0
+
+            self.stop_hand()
+
+            final_contacts = {}
+            if last_capacitive is not None:
+                final_contacts = last_capacitive.get("contacts") or {}
+
+            final_progress = self._build_full_grip_progress(
+                contacts=final_contacts,
+                ignored_sensors=ignored_set,
+                required_sensors=normalized_required_sensors
+            )
+
+            return {
+                "ok": True,
+                "message": "Tiempo máximo alcanzado antes de que todos los sensores válidos detectaran contacto. Mano detenida por seguridad.",
+                "moved": True,
+                "stopped": True,
+                "all_contacts_detected": False,
+                "reason": "timeout",
+                "elapsed_seconds": round(time.monotonic() - total_start_time, 3),
+                "active_sensors": final_progress["active_sensors"],
+                "contact_sensors": final_progress["contact_sensors"],
+                "missing_sensors": final_progress["missing_sensors"],
+                "contact_count": final_progress["contact_count"],
+                "required_contact_count": final_progress["required_contact_count"],
+                "ignored_sensors": sorted(list(ignored_set)),
+                "start_from_open": start_from_open,
+                "pulse_count": pulse_count,
+                "close_pulse_seconds": close_pulse_seconds,
+                "command": close_command_template,
+                "capacitive": last_capacitive,
+            }
+
+        except Exception as e:
+            try:
+                self.stop_hand()
+            except Exception:
+                pass
+
+            return {
+                "ok": False,
+                "message": f"Error durante el agarre completo: {str(e)}",
+                "moved": True,
+                "stopped": True,
+                "all_contacts_detected": False,
+                "reason": "error",
+                "elapsed_seconds": round(time.monotonic() - total_start_time, 3),
+                "active_sensors": [],
+                "contact_sensors": [],
+                "missing_sensors": [],
+                "contact_count": 0,
+                "required_contact_count": 0,
+                "ignored_sensors": sorted(list(ignored_set)),
+                "start_from_open": start_from_open,
+                "pulse_count": pulse_count,
+                "close_pulse_seconds": close_pulse_seconds,
+                "command": close_command_template,
+                "capacitive": last_capacitive,
+            }
 
     # -------------------------------------------------------------------------
     # CÁMARA
