@@ -11,6 +11,8 @@ import com.example.myapplication.data.remote.dto.VoiceDetectResponse
 import com.example.myapplication.data.remote.dto.VoiceMoveResponse
 import com.example.myapplication.data.remote.dto.HealthDto
 import com.example.myapplication.data.remote.dto.CapacitiveDto
+import com.example.myapplication.data.remote.dto.FullGripDto
+import com.example.myapplication.data.remote.dto.FullGripRequest
 import com.example.myapplication.data.remote.dto.SafeGripDto
 import com.example.myapplication.data.remote.dto.SafeGripRequest
 
@@ -91,6 +93,22 @@ class TfgRepository(
                 poll_interval = 0.15,
                 consecutive_reads = 2,
                 ignored_sensors = listOf("ring")
+            )
+        )
+    }
+    suspend fun fullGrip(): FullGripDto {
+        return apiService.fullGrip(
+            FullGripRequest(
+                max_seconds = 15.0,
+                poll_interval = 0.08,
+                consecutive_reads = 2,
+                ignored_sensors = listOf("ring"),
+                required_sensors = null,
+                start_from_open = true,
+                open_wait_seconds = 3.0,
+                close_step = 20,
+                step_settle_seconds = 0.12,
+                pause_between_steps = 0.20
             )
         )
     }

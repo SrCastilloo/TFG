@@ -11,6 +11,8 @@ import com.example.myapplication.data.remote.dto.CameraDetectionDto
 import com.example.myapplication.data.remote.dto.AssistantChatRequestDto
 import com.example.myapplication.data.remote.dto.AssistantChatResponseDto
 import com.example.myapplication.data.remote.dto.CapacitiveDto
+import com.example.myapplication.data.remote.dto.FullGripDto
+import com.example.myapplication.data.remote.dto.FullGripRequest
 import com.example.myapplication.data.remote.dto.VoiceDetectResponse
 import com.example.myapplication.data.remote.dto.VoiceMoveResponse
 import retrofit2.http.Body
@@ -76,4 +78,9 @@ interface TfgApiService {
     suspend fun safeGrip(
         @Body request: SafeGripRequest
     ): SafeGripDto
+
+    @POST("hand/full-grip")
+    suspend fun fullGrip(
+        @Body request: FullGripRequest
+    ): FullGripDto
 }

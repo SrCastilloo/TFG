@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.example.myapplication.data.remote.dto.FullGripDto
+
 
 data class CapacitiveUiState(
     val isLoading: Boolean = false,
@@ -18,7 +20,9 @@ data class CapacitiveUiState(
     val data: CapacitiveDto? = null,
     val safeGripResult: SafeGripDto? = null,
     val message: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val isFullGripLoading: Boolean = false,
+    val fullGripResult: FullGripDto? = null
 )
 
 class CapacitiveViewModel : ViewModel() {
@@ -141,6 +145,51 @@ class CapacitiveViewModel : ViewModel() {
 
                 _uiState.value = _uiState.value.copy(
                     isSafeGripLoading = false,
+                    error = errorMessage
+                )
+            }
+        }
+    }
+    fun startFullGrip() {
+        if (_uiState.value.isFullGripLoading) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isFullGripLoading = true,
+                error = null,
+                message = null,
+                fullGripResult = null
+            )
+
+            try {
+                val response = repository.fullGrip()
+
+                ActionHistoryStore.add(
+                    source = "Capacitivos",
+                    title = "Agarre completo",
+                    detail = response.message ?: "Agarre completo ejecutado.",
+                    success = response.ok
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    isFullGripLoading = false,
+                    data = response.capacitive ?: _uiState.value.data,
+                    fullGripResult = response,
+                    message = response.message,
+                    error = null
+                )
+            } catch (e: Exception) {
+                val errorMessage = e.message ?: "Error desconocido ejecutando agarre completo."
+
+                ActionHistoryStore.add(
+                    source = "Capacitivos",
+                    title = "Error en agarre completo",
+                    detail = errorMessage,
+                    success = false
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    isFullGripLoading = false,
                     error = errorMessage
                 )
             }

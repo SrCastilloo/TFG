@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.data.remote.dto.CapacitiveDto
+import com.example.myapplication.data.remote.dto.FullGripDto
 import com.example.myapplication.data.remote.dto.SafeGripDto
 import com.example.myapplication.ui.viewmodel.CapacitiveViewModel
 
@@ -90,6 +91,9 @@ fun CapacitiveScreen(
                 safeGripResult = uiState.safeGripResult,
                 isSafeGripLoading = uiState.isSafeGripLoading,
                 onSafeGrip = { viewModel.startSafeGrip() },
+                fullGripResult = uiState.fullGripResult,
+                isFullGripLoading = uiState.isFullGripLoading,
+                onFullGrip = { viewModel.startFullGrip() },
             )
         } else {
             CapacitivePortraitContent(
@@ -103,6 +107,9 @@ fun CapacitiveScreen(
                 safeGripResult = uiState.safeGripResult,
                 isSafeGripLoading = uiState.isSafeGripLoading,
                 onSafeGrip = { viewModel.startSafeGrip() },
+                fullGripResult = uiState.fullGripResult,
+                isFullGripLoading = uiState.isFullGripLoading,
+                onFullGrip = { viewModel.startFullGrip() },
             )
         }
     }
@@ -120,6 +127,9 @@ private fun CapacitivePortraitContent(
     safeGripResult: SafeGripDto?,
     isSafeGripLoading: Boolean,
     onSafeGrip: () -> Unit,
+    fullGripResult: FullGripDto?,
+    isFullGripLoading: Boolean,
+    onFullGrip: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -157,6 +167,14 @@ private fun CapacitivePortraitContent(
                 compact = compact
             )
         }
+        item {
+            FullGripCard(
+                fullGripResult = fullGripResult,
+                isLoading = isFullGripLoading,
+                onFullGrip = onFullGrip,
+                compact = compact
+            )
+        }
 
         capacitiveSummaryItems(
             data = data,
@@ -188,6 +206,9 @@ private fun CapacitiveLandscapeContent(
     safeGripResult: SafeGripDto?,
     isSafeGripLoading: Boolean,
     onSafeGrip: () -> Unit,
+    fullGripResult: FullGripDto?,
+    isFullGripLoading: Boolean,
+    onFullGrip: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -802,6 +823,217 @@ private fun SafeGripCard(
         }
     }
 }
+
+@Composable
+private fun FullGripCard(
+    fullGripResult: FullGripDto?,
+    isLoading: Boolean,
+    onFullGrip: () -> Unit,
+    compact: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(if (compact) 22.dp else 28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFF8FAFC)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(if (compact) 16.dp else 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "✊ Agarre completo",
+                color = Color(0xFF0F172A),
+                style = if (compact) {
+                    MaterialTheme.typography.titleMedium
+                } else {
+                    MaterialTheme.typography.titleLarge
+                },
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Text(
+                text = "Cierra la mano muy poco a poco hasta que todos los sensores válidos detecten contacto.",
+                color = Color(0xFF475569),
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                color = Color(0xFFEDE9FE)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Configuración actual",
+                        color = Color(0xFF4C1D95),
+                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    Text(
+                        text = "Ignora: anular · Paso: cierre progresivo",
+                        color = Color(0xFF5B21B6),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Text(
+                        text = "Condición de parada: todos los sensores válidos en contacto",
+                        color = Color(0xFF5B21B6),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            Button(
+                onClick = onFullGrip,
+                enabled = !isLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(if (compact) 46.dp else 52.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF7C3AED),
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFF7C3AED).copy(alpha = 0.45f),
+                    disabledContentColor = Color.White.copy(alpha = 0.7f)
+                )
+            ) {
+                Text(
+                    text = if (isLoading) "Ejecutando agarre..." else "Iniciar agarre completo",
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (fullGripResult != null) {
+                FullGripResultBox(
+                    fullGripResult = fullGripResult
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FullGripResultBox(
+    fullGripResult: FullGripDto
+) {
+    val resultColor = when {
+        fullGripResult.ok && fullGripResult.all_contacts_detected == true -> Color(0xFF065F46)
+        fullGripResult.ok && fullGripResult.reason == "timeout" -> Color(0xFF92400E)
+        else -> Color(0xFF7F1D1D)
+    }
+
+    val title = when {
+        fullGripResult.ok && fullGripResult.all_contacts_detected == true -> "Agarre completado"
+        fullGripResult.ok && fullGripResult.reason == "timeout" -> "Finalizado por seguridad"
+        else -> "No se pudo completar"
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = resultColor.copy(alpha = 0.12f)
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = title,
+                color = resultColor,
+                fontWeight = FontWeight.ExtraBold,
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Text(
+                text = fullGripResult.message ?: "Resultado del agarre completo.",
+                color = resultColor,
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            Text(
+                text = "Contactos: ${fullGripResult.contact_count ?: 0}/${fullGripResult.required_contact_count ?: 0}",
+                color = Color(0xFF334155),
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            Text(
+                text = "Sensores con contacto: ${friendlyFullGripSensorList(fullGripResult.contact_sensors)}",
+                color = Color(0xFF334155),
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            Text(
+                text = "Sensores pendientes: ${friendlyFullGripSensorList(fullGripResult.missing_sensors)}",
+                color = Color(0xFF64748B),
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            Text(
+                text = "Ignorados: ${friendlyFullGripSensorList(fullGripResult.ignored_sensors)}",
+                color = Color(0xFF64748B),
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            Text(
+                text = "Pasos: ${fullGripResult.step_count ?: 0} · Tamaño paso: ${fullGripResult.close_step ?: 0} · Tiempo: ${fullGripResult.elapsed_seconds ?: 0.0}s",
+                color = Color(0xFF64748B),
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            Text(
+                text = "Motivo: ${friendlyFullGripReason(fullGripResult.reason)}",
+                color = Color(0xFF64748B),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+
+private fun friendlyFullGripSensorList(sensors: List<String>?): String {
+    if (sensors.isNullOrEmpty()) return "ninguno"
+
+    return sensors.joinToString(", ") { sensor ->
+        friendlyFullGripSensor(sensor)
+    }
+}
+
+private fun friendlyFullGripSensor(sensor: String): String {
+    return when (sensor) {
+        "pinky" -> "meñique"
+        "ring" -> "anular"
+        "middle" -> "medio"
+        "index" -> "índice"
+        "thumb" -> "pulgar"
+        "palm" -> "palma"
+        else -> sensor
+    }
+}
+
+private fun friendlyFullGripReason(reason: String?): String {
+    return when (reason) {
+        "all_contacts_detected" -> "todos los sensores detectaron contacto"
+        "initial_all_contacts" -> "ya había contacto completo al inicio"
+        "timeout" -> "tiempo máximo alcanzado"
+        "no_valid_sensors" -> "no hay sensores válidos"
+        "capacitive_not_available" -> "sensores capacitivos no disponibles"
+        "hand_not_available" -> "mano no disponible"
+        "error" -> "error durante el agarre"
+        null -> "desconocido"
+        else -> reason
+    }
+}
+
+
 
 private fun friendlySafeGripSensor(sensor: String?): String {
     return when (sensor) {
