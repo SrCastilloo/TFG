@@ -25,6 +25,9 @@ class SpeakerControl:
 		self.__voiceModeSound = None
 		self.__cameraModeSound = None
 
+		# NUEVO: pin que despierta el amplificador del altavoz
+		self.__pin_shutdown_speaker = None
+
 		''' Load config file '''
 		self.__config = ConfigParser()
 
@@ -32,6 +35,10 @@ class SpeakerControl:
 		try:
 			self.__config.read(conf_file)           # read the config file
 			self.__load_config()                    # load config data
+
+			# NUEVO: activar el amplificador para que el altavoz suene
+			self.__init_speaker_gpio()
+
 		except KeyError as e:
 			print(traceback.format_exc(), f"There has been a KeyError in the config file. Check the config file and the path.\nKey: {str(e)} does not exist.")
 		except OSError as e:
@@ -54,6 +61,22 @@ class SpeakerControl:
 		self.__voiceModeSound = self.__config.get(self.__name,'routeVoiceSound')
 		self.__cameraModeSound = self.__config.get(self.__name,'routeCameraSound')
 
+		# NUEVO: cargar el pin desde config.ini
+		self.__pin_shutdown_speaker = self.__config.getint('GPIO', 'pin_shutdown_speaker')
+
+
+	def __init_speaker_gpio(self):
+		'''
+			Initializes the GPIO pin that keeps the speaker amplifier enabled.
+			If this pin is LOW, mpg123 decodes the audio but nothing is heard.
+		'''
+
+		GPIO.setmode(GPIO.BCM)
+		GPIO.setwarnings(False)
+		GPIO.setup(self.__pin_shutdown_speaker, GPIO.OUT, initial=GPIO.HIGH)
+
+		print(f"Speaker shutdown pin GPIO{self.__pin_shutdown_speaker} set to HIGH.")
+
 		
 	
 	'''
@@ -70,6 +93,15 @@ class SpeakerControl:
 	def play_camera_sound(self):
 		p = subprocess.run(["sudo", "mpg123", self.__cameraModeSound])
 
+
+	def shutdown_speaker(self):
+		'''
+			Shutdown the speaker amplifier.
+		'''
+
+		if self.__pin_shutdown_speaker is not None:
+			GPIO.output(self.__pin_shutdown_speaker, GPIO.LOW)
+
 	
 
 ''' 
@@ -80,17 +112,10 @@ if __name__ == "__main__":
 	name = "speaker_control"
 	test = SpeakerControl(name, conf_file)
 
-	pin_shutdown_speaker = 14 # GPIO pin for not shutting down speaker
-
-	GPIO.cleanup() # Reset GPIO config if existing
-	GPIO.setmode(GPIO.BCM) # set the used pin numbers to the Broadcom SOC channel numbers
-	GPIO.setwarnings(False) # disable the warnings
-	GPIO.setup(pin_shutdown_speaker, GPIO.OUT, initial=GPIO.HIGH) # Init of the wake up pin
-
 	test.play_hand_sound()
 
 	test.play_voice_sound()
 
 	test.play_camera_sound()
 
-	GPIO.output(pin_shutdown_speaker, GPIO.LOW) 
+	test.shutdown_speaker()
