@@ -310,6 +310,33 @@ class HandSystemController:
             "count": len(sorted_positions),
         }
     
+    def _first_contact_sensor(self, contacts: Dict[str, bool]) -> Optional[str]:
+        """
+        Devuelve el primer sensor que está detectando contacto.
+        """
+        for sensor, has_contact in contacts.items():
+            if has_contact:
+                return sensor
+
+        return None
+
+
+    def _filter_ignored_contacts(
+        self,
+        contacts: Dict[str, bool],
+        ignored_sensors
+    ) -> Dict[str, bool]:
+        """
+        Elimina de la lógica de contacto los sensores indicados como ignorados.
+        """
+        filtered_contacts = {}
+
+        for sensor, has_contact in contacts.items():
+            if sensor.lower() not in ignored_sensors:
+                filtered_contacts[sensor] = has_contact
+
+        return filtered_contacts
+    
 
     def safe_grip(
         self,
