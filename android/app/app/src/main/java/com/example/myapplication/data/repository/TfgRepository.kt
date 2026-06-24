@@ -13,6 +13,7 @@ import com.example.myapplication.data.remote.dto.HealthDto
 import com.example.myapplication.data.remote.dto.CapacitiveDto
 import com.example.myapplication.data.remote.dto.FullGripDto
 import com.example.myapplication.data.remote.dto.FullGripRequest
+import com.example.myapplication.data.remote.dto.ModeDto
 import com.example.myapplication.data.remote.dto.SafeGripDto
 import com.example.myapplication.data.remote.dto.SafeGripRequest
 
@@ -111,6 +112,17 @@ class TfgRepository(
                 pause_between_steps = 0.20
             )
         )
+    }
+    suspend fun setModeHandVoice(): ModeDto {
+        return apiService.setModeHandVoice()
+    }
+
+    suspend fun setModeVoiceVoice(): ModeDto {
+        return apiService.setModeVoiceVoice()
+    }
+
+    suspend fun setModeCameraVoice(): ModeDto {
+        return apiService.setModeCameraVoice()
     }
 
 }

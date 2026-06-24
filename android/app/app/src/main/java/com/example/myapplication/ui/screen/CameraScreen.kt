@@ -53,6 +53,7 @@ import coil.compose.AsyncImage
 import com.example.myapplication.data.remote.ApiConfig
 import com.example.myapplication.ui.common.getHandPositionTitle
 import com.example.myapplication.ui.viewmodel.CameraViewModel
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun CameraScreen(
@@ -60,6 +61,12 @@ fun CameraScreen(
     scaffoldPadding: PaddingValues = PaddingValues(),
     viewModel: CameraViewModel = viewModel()
 ) {
+    LaunchedEffect(Unit)
+    {
+        viewModel.activateCameraMode()
+
+
+    }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var lastFrameRequestKey by remember { mutableStateOf<Long?>(null) }
 

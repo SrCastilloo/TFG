@@ -194,4 +194,13 @@ class AssistantViewModel : ViewModel() {
                 normalized.contains("acción ejecutada") ||
                 normalized.contains("accion ejecutada")
     }
+    fun activateVoiceMode() {
+        viewModelScope.launch {
+            try {
+                repository.setModeVoiceVoice()
+            } catch (e: Exception) {
+                // No bloqueamos la pantalla si falla el sonido/modo
+            }
+        }
+    }
 }

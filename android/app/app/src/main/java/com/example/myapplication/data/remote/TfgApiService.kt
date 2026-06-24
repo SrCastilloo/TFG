@@ -13,6 +13,7 @@ import com.example.myapplication.data.remote.dto.AssistantChatResponseDto
 import com.example.myapplication.data.remote.dto.CapacitiveDto
 import com.example.myapplication.data.remote.dto.FullGripDto
 import com.example.myapplication.data.remote.dto.FullGripRequest
+import com.example.myapplication.data.remote.dto.ModeDto
 import com.example.myapplication.data.remote.dto.VoiceDetectResponse
 import com.example.myapplication.data.remote.dto.VoiceMoveResponse
 import retrofit2.http.Body
@@ -83,4 +84,13 @@ interface TfgApiService {
     suspend fun fullGrip(
         @Body request: FullGripRequest
     ): FullGripDto
+
+    @POST("modes/hand")
+    suspend fun setModeHandVoice(): ModeDto
+
+    @POST("modes/voice")
+    suspend fun setModeVoiceVoice(): ModeDto
+
+    @POST("modes/camera")
+    suspend fun setModeCameraVoice(): ModeDto
 }

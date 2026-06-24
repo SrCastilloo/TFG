@@ -32,6 +32,16 @@ class CameraViewModel : ViewModel() {
         }
     }
 
+    fun activateCameraMode() {
+        viewModelScope.launch {
+            try {
+                repository.setModeCameraVoice()
+            } catch (e: Exception) {
+                // No bloqueamos la pantalla si falla el sonido/modo
+            }
+        }
+    }
+
     private fun runAction(
         historyTitle: String,
         action: suspend () -> CameraDetectionDto
