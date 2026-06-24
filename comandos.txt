@@ -1,0 +1,6 @@
+curl -X POST http://localhost:8000/hand/manual \
+  -H "Content-Type: application/json" \
+  -d '{"command":{"middle":"close"}}'
+
+
+  curl -X POST http://localhost:8000/status/refresh-hand
