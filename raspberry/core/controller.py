@@ -321,7 +321,8 @@ class HandSystemController:
         open_wait_seconds: float = 3.0,
         target_position_id: int = 2,
         close_step: int = 30,
-        step_settle_seconds: float = 0.20
+        step_settle_seconds: float = 0.20,
+        pause_between_steps: float = 0.0
     ) -> Dict[str, Any]:
 
         max_seconds = max(0.5, min(float(max_seconds), 25.0))
