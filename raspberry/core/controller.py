@@ -313,48 +313,47 @@ class HandSystemController:
 
     def safe_grip(
         self,
-        max_seconds: float = 6.0,
+        max_seconds: float = 12.0,
         poll_interval: float = 0.08,
         consecutive_reads: int = 2,
         ignored_sensors: Optional[List[str]] = None,
         start_from_open: bool = True,
         open_wait_seconds: float = 3.0,
-        close_pulse_seconds: float = 0.20,
-        pause_between_pulses: float = 0.10
+        close_step: int = 20,
+        step_settle_seconds: float = 0.12,
+        pause_between_steps: float = 0.20
     ) -> Dict[str, Any]:
         """
-        Ejecuta un agarre seguro usando sensores capacitivos.
+        Ejecuta un agarre seguro progresivo.
 
-        Funcionamiento:
-        1. Opcionalmente abre la mano a la posición 0.
-        2. Cierra la mano mediante pulsos cortos.
-        3. Entre pulsos lee los sensores capacitivos.
-        4. Si detecta contacto válido, detiene la mano.
-        5. Si alcanza el tiempo máximo, detiene la mano por seguridad.
+        La mano parte de una posición abierta y va cerrando poco a poco.
+        Se detiene automáticamente cuando cualquier sensor capacitivo válido
+        detecta contacto.
 
         Permite ignorar sensores defectuosos:
         ignored_sensors=["ring"]
         """
 
-        max_seconds = max(0.5, min(float(max_seconds), 15.0))
+        max_seconds = max(0.5, min(float(max_seconds), 25.0))
         poll_interval = max(0.03, min(float(poll_interval), 0.5))
         consecutive_reads = max(1, min(int(consecutive_reads), 5))
         open_wait_seconds = max(0.0, min(float(open_wait_seconds), 8.0))
-        close_pulse_seconds = max(0.05, min(float(close_pulse_seconds), 1.0))
-        pause_between_pulses = max(0.03, min(float(pause_between_pulses), 1.0))
+        close_step = max(5, min(int(close_step), 300))
+        step_settle_seconds = max(0.05, min(float(step_settle_seconds), 1.0))
+        pause_between_steps = max(0.03, min(float(pause_between_steps), 1.0))
 
         ignored_sensors = ignored_sensors or []
         ignored_set = set(sensor.strip().lower() for sensor in ignored_sensors)
 
-        close_command_template = {
-            "ring": "close",
-            "middle": "close",
-            "index": "close",
-            "thumb0": "close",
-            "thumb1": "close",
-        }
-
         total_start_time = time.monotonic()
+
+        step_command_template = {
+            "ring": "step_close",
+            "middle": "step_close",
+            "index": "step_close",
+            "thumb0": "step_close",
+            "thumb1": "step_close",
+        }
 
         if self.simulation:
             simulated_capacitive = {
@@ -399,7 +398,7 @@ class HandSystemController:
 
             return {
                 "ok": True,
-                "message": "Simulación: agarre seguro por pulsos detenido al detectar contacto.",
+                "message": "Simulación: agarre seguro progresivo detenido al detectar contacto.",
                 "moved": True,
                 "stopped": True,
                 "contact_detected": contact_count > 0,
@@ -409,9 +408,9 @@ class HandSystemController:
                 "contact_count": contact_count,
                 "ignored_sensors": sorted(list(ignored_set)),
                 "start_from_open": start_from_open,
-                "pulse_count": 4,
-                "close_pulse_seconds": close_pulse_seconds,
-                "command": close_command_template,
+                "step_count": 4,
+                "close_step": close_step,
+                "command": step_command_template,
                 "capacitive": simulated_capacitive,
             }
 
@@ -428,9 +427,9 @@ class HandSystemController:
                 "contact_count": 0,
                 "ignored_sensors": sorted(list(ignored_set)),
                 "start_from_open": start_from_open,
-                "pulse_count": 0,
-                "close_pulse_seconds": close_pulse_seconds,
-                "command": close_command_template,
+                "step_count": 0,
+                "close_step": close_step,
+                "command": step_command_template,
                 "capacitive": None,
             }
 
@@ -447,21 +446,21 @@ class HandSystemController:
                 "contact_count": 0,
                 "ignored_sensors": sorted(list(ignored_set)),
                 "start_from_open": start_from_open,
-                "pulse_count": 0,
-                "close_pulse_seconds": close_pulse_seconds,
-                "command": close_command_template,
+                "step_count": 0,
+                "close_step": close_step,
+                "command": step_command_template,
                 "capacitive": None,
             }
 
         last_capacitive = None
-        pulse_count = 0
+        step_count = 0
 
         try:
             if start_from_open:
                 self.open_hand()
                 time.sleep(open_wait_seconds)
                 self.stop_hand()
-                time.sleep(pause_between_pulses)
+                time.sleep(pause_between_steps)
 
             initial_capacitive = self.refresh_capacitive_status()
             last_capacitive = initial_capacitive
@@ -487,9 +486,9 @@ class HandSystemController:
                     "contact_count": initial_contact_count,
                     "ignored_sensors": sorted(list(ignored_set)),
                     "start_from_open": start_from_open,
-                    "pulse_count": pulse_count,
-                    "close_pulse_seconds": close_pulse_seconds,
-                    "command": close_command_template,
+                    "step_count": step_count,
+                    "close_step": close_step,
+                    "command": step_command_template,
                     "capacitive": initial_capacitive,
                 }
 
@@ -497,61 +496,19 @@ class HandSystemController:
             consecutive_contact_counter = 0
 
             while time.monotonic() - grip_start_time < max_seconds:
-                pulse_count += 1
+                step_count += 1
 
-                # IMPORTANTE:
-                # move_open_close modifica el diccionario que recibe.
-                # Por eso mandamos una copia nueva en cada pulso.
-                self.hand.move_open_close(dict(close_command_template))
+                # Cierre real progresivo:
+                # cada vuelta solo avanza un paso pequeño, no va al tope.
+                step_target = self.hand.step_close(close_step=close_step)
 
-                pulse_start_time = time.monotonic()
+                time.sleep(step_settle_seconds)
 
-                while (
-                    time.monotonic() - pulse_start_time < close_pulse_seconds
-                    and time.monotonic() - grip_start_time < max_seconds
-                ):
-                    time.sleep(poll_interval)
-
-                    capacitive_status = self.refresh_capacitive_status()
-                    last_capacitive = capacitive_status
-
-                    raw_contacts = capacitive_status.get("contacts") or {}
-                    contacts = self._filter_ignored_contacts(raw_contacts, ignored_set)
-                    contact_count = sum(1 for value in contacts.values() if value)
-
-                    if contact_count > 0:
-                        consecutive_contact_counter += 1
-
-                        if consecutive_contact_counter >= consecutive_reads:
-                            self.stop_hand()
-
-                            contact_sensor = self._first_contact_sensor(contacts)
-
-                            return {
-                                "ok": True,
-                                "message": "Contacto detectado. Mano detenida automáticamente.",
-                                "moved": True,
-                                "stopped": True,
-                                "contact_detected": True,
-                                "reason": "contact_detected",
-                                "elapsed_seconds": round(time.monotonic() - total_start_time, 3),
-                                "contact_sensor": contact_sensor,
-                                "contact_count": contact_count,
-                                "ignored_sensors": sorted(list(ignored_set)),
-                                "start_from_open": start_from_open,
-                                "pulse_count": pulse_count,
-                                "close_pulse_seconds": close_pulse_seconds,
-                                "command": close_command_template,
-                                "capacitive": capacitive_status,
-                            }
-                    else:
-                        consecutive_contact_counter = 0
-
-                # Fin del pulso: paramos para que el cierre sea progresivo
+                # Paramos tras cada paso para evitar cierre continuo.
                 self.stop_hand()
-                time.sleep(pause_between_pulses)
 
-                # Lectura extra tras detener, por si el contacto aparece justo al parar
+                time.sleep(pause_between_steps)
+
                 capacitive_status = self.refresh_capacitive_status()
                 last_capacitive = capacitive_status
 
@@ -569,7 +526,7 @@ class HandSystemController:
 
                         return {
                             "ok": True,
-                            "message": "Contacto detectado tras un pulso. Mano detenida automáticamente.",
+                            "message": "Contacto detectado. Mano detenida automáticamente.",
                             "moved": True,
                             "stopped": True,
                             "contact_detected": True,
@@ -579,9 +536,10 @@ class HandSystemController:
                             "contact_count": contact_count,
                             "ignored_sensors": sorted(list(ignored_set)),
                             "start_from_open": start_from_open,
-                            "pulse_count": pulse_count,
-                            "close_pulse_seconds": close_pulse_seconds,
-                            "command": close_command_template,
+                            "step_count": step_count,
+                            "close_step": close_step,
+                            "last_step_target": step_target,
+                            "command": step_command_template,
                             "capacitive": capacitive_status,
                         }
                 else:
@@ -601,9 +559,9 @@ class HandSystemController:
                 "contact_count": 0,
                 "ignored_sensors": sorted(list(ignored_set)),
                 "start_from_open": start_from_open,
-                "pulse_count": pulse_count,
-                "close_pulse_seconds": close_pulse_seconds,
-                "command": close_command_template,
+                "step_count": step_count,
+                "close_step": close_step,
+                "command": step_command_template,
                 "capacitive": last_capacitive,
             }
 
@@ -625,11 +583,12 @@ class HandSystemController:
                 "contact_count": 0,
                 "ignored_sensors": sorted(list(ignored_set)),
                 "start_from_open": start_from_open,
-                "pulse_count": pulse_count,
-                "close_pulse_seconds": close_pulse_seconds,
-                "command": close_command_template,
+                "step_count": step_count,
+                "close_step": close_step,
+                "command": step_command_template,
                 "capacitive": last_capacitive,
             }
+        
     def _first_contact_sensor(self, contacts: Dict[str, bool]) -> Optional[str]:
         """
         Devuelve el primer sensor que está detectando contacto.

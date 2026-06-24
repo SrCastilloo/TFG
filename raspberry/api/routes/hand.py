@@ -26,15 +26,15 @@ class FullGripRequest(BaseModel):
 
 
 class SafeGripRequest(BaseModel):
-    max_seconds: float = 6.0
+    max_seconds: float = 12.0
     poll_interval: float = 0.08
     consecutive_reads: int = 2
     ignored_sensors: List[str] = Field(default_factory=list)
     start_from_open: bool = True
     open_wait_seconds: float = 3.0
-    close_pulse_seconds: float = 0.20
-    pause_between_pulses: float = 0.10
-
+    close_step: int = 20
+    step_settle_seconds: float = 0.12
+    pause_between_steps: float = 0.20
 
 
 @router.post("/open")
@@ -77,10 +77,10 @@ def safe_grip(data: SafeGripRequest, request: Request):
         ignored_sensors=data.ignored_sensors,
         start_from_open=data.start_from_open,
         open_wait_seconds=data.open_wait_seconds,
-        close_pulse_seconds=data.close_pulse_seconds,
-        pause_between_pulses=data.pause_between_pulses
+        close_step=data.close_step,
+        step_settle_seconds=data.step_settle_seconds,
+        pause_between_steps=data.pause_between_steps
     )
-
 
 @router.post("/full-grip")
 def full_grip(data: FullGripRequest, request: Request):
