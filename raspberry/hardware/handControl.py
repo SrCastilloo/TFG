@@ -198,7 +198,7 @@ class HandControl:
 		#data.append((self.__target["middle"] & self.__mask_msb) >> 8)
 		#data.append(self.__target["middle"] & self.__mask_lsb)
 		data.append((5000 & self.__mask_msb) >> 8)
-		data.append(5000 & self.__mask_lsb) Comentado: Lo he editado para probarlo. Modificación realizada por Daniel Castillo
+		data.append(5000 & self.__mask_lsb) #Comentado: Lo he editado para probarlo. Modificación realizada por Daniel Castillo
 
 		data.append((self.__target["index"] & self.__mask_msb) >> 8)
 		data.append(self.__target["index"] & self.__mask_lsb)
