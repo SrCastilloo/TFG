@@ -9,6 +9,8 @@ import time
 import RPi.GPIO as GPIO
 from hardware.cmdDevice import CmdDevice
 from hardware.capacitiveControl import CapacitiveControl
+import threading
+from hardware.speakerControl import SpeakerControl
 
 """
 Resumen de lo que hace cada atributo que tiene el controlador:
@@ -107,6 +109,20 @@ class HandSystemController:
                 self.capacitive_available = False
                 print(f"No se pudieron inicializar los sensores capacitivos: {e}")
 
+            try:
+                if not self.simulation:
+                    self.speaker = SpeakerControl("speaker_control", self.config_path)
+                    self.speaker_available = True
+                    print("Altavoz inicializado correctamente.")
+                else:
+                    self.speaker = None
+                    self.speaker_available = False
+
+            except Exception as e:
+                self.speaker = None
+                self.speaker_available = False
+                print(f"No se pudo inicializar el altavoz: {e}")
+
             # Subsistema de voz
             self.speech = CmdDevice("cmd_speech", self.config_path)
 
@@ -135,6 +151,7 @@ class HandSystemController:
 
     def set_mode_voice(self) -> Dict[str, Any]:
         self.mode = SystemMode.VOICE
+        self._play_sound_async("voice")
         return {
             "ok": True,
             "mode": self.mode.value,
@@ -143,6 +160,7 @@ class HandSystemController:
 
     def set_mode_camera(self) -> Dict[str, Any]:
         self.mode = SystemMode.CAMERA
+        self._play_sound_async("camera")
         return {
             "ok": True,
             "mode": self.mode.value,
@@ -1462,3 +1480,30 @@ class HandSystemController:
             "position_id": position_id,
             "message": f"Comando de voz {command} ejecutado. Mano movida a posición {position_id}."
         }
+    
+    def _play_sound_async(self, sound_name: str) -> None:
+        """
+        Reproduce un sonido del sistema en segundo plano para no bloquear la API.
+        sound_name puede ser: hand, voice, camera
+        """
+
+        if self.simulation:
+            print(f"Simulación: se reproduciría sonido de modo {sound_name}.")
+            return
+
+        if not getattr(self, "speaker_available", False) or self.speaker is None:
+            print("Altavoz no disponible. No se reproduce sonido.")
+            return
+
+        def runner():
+            try:
+                if sound_name == "hand":
+                    self.speaker.play_hand_sound()
+                elif sound_name == "voice":
+                    self.speaker.play_voice_sound()
+                elif sound_name == "camera":
+                    self.speaker.play_camera_sound()
+            except Exception as e:
+                print(f"Error reproduciendo sonido {sound_name}: {e}")
+
+            threading.Thread(target=runner, daemon=True).start()
