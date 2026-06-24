@@ -195,10 +195,10 @@ class HandControl:
 		data.append(self.__target["ring"] & self.__mask_lsb)
 
 		''' The middle finger is not used right now, so we set it to 5000, which is the stop command for the middle finger '''
-		#data.append((self.__target["middle"] & self.__mask_msb) >> 8)
-		#data.append(self.__target["middle"] & self.__mask_lsb)
-		data.append((5000 & self.__mask_msb) >> 8)
-		data.append(5000 & self.__mask_lsb)
+		data.append((self.__target["middle"] & self.__mask_msb) >> 8)
+		data.append(self.__target["middle"] & self.__mask_lsb)
+		#data.append((5000 & self.__mask_msb) >> 8)
+		#data.append(5000 & self.__mask_lsb) Comentado: Lo he editado para probarlo. Modificación realizada por Daniel Castillo
 
 		data.append((self.__target["index"] & self.__mask_msb) >> 8)
 		data.append(self.__target["index"] & self.__mask_lsb)
@@ -449,6 +449,53 @@ class HandControl:
 		'''
 		self.__send_command_target(position_nr, self.__cmd_move)
 
+
+	# Author: Daniel Castillo.
+	def step_towards_position(self, position_nr, step_size=30, fingers=None):
+		"""
+		Move the fingers gradually to a predefined position in config.ini.
+
+		Instead of sending the final position directly, 
+		advance each finger a small step toward that position.
+		"""
+
+		if fingers is None:
+			fingers = ["ring", "middle", "index", "thumb0", "thumb1"]
+
+		target_position = self.get_position(position_nr)
+
+		if target_position is None:
+			raise positionNotFoundException(
+				f"Position with the number {position_nr} could not be resolved."
+			)
+
+		self.update_status()
+
+		self.__target["command"] = self.__cmd_move
+
+		for finger in ["ring", "middle", "index", "thumb0", "thumb1"]:
+			current_value = self.__status[finger]
+
+			if current_value is None:
+				current_value = self.__target[finger]
+
+			final_value = target_position[finger]
+
+			if finger in fingers:
+				if current_value < final_value:
+					next_value = min(final_value, current_value + step_size)
+				elif current_value > final_value:
+					next_value = max(final_value, current_value - step_size)
+				else:
+					next_value = current_value
+
+				self.__target[finger] = int(next_value)
+			else:
+				self.__target[finger] = int(current_value)
+
+		self.__send_command()
+
+		return self.__copy_dct(self.__target)
 
 	def stop_movement(self,cmd_values):
 		''' 

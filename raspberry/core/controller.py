@@ -319,20 +319,10 @@ class HandSystemController:
         ignored_sensors: Optional[List[str]] = None,
         start_from_open: bool = True,
         open_wait_seconds: float = 3.0,
-        close_step: int = 20,
-        step_settle_seconds: float = 0.12,
-        pause_between_steps: float = 0.20
+        target_position_id: int = 2,
+        close_step: int = 30,
+        step_settle_seconds: float = 0.20
     ) -> Dict[str, Any]:
-        """
-        Ejecuta un agarre seguro progresivo.
-
-        La mano parte de una posición abierta y va cerrando poco a poco.
-        Se detiene automáticamente cuando cualquier sensor capacitivo válido
-        detecta contacto.
-
-        Permite ignorar sensores defectuosos:
-        ignored_sensors=["ring"]
-        """
 
         max_seconds = max(0.5, min(float(max_seconds), 25.0))
         poll_interval = max(0.03, min(float(poll_interval), 0.5))
@@ -340,127 +330,84 @@ class HandSystemController:
         open_wait_seconds = max(0.0, min(float(open_wait_seconds), 8.0))
         close_step = max(5, min(int(close_step), 300))
         step_settle_seconds = max(0.05, min(float(step_settle_seconds), 1.0))
-        pause_between_steps = max(0.03, min(float(pause_between_steps), 1.0))
 
         ignored_sensors = ignored_sensors or []
         ignored_set = set(sensor.strip().lower() for sensor in ignored_sensors)
 
         total_start_time = time.monotonic()
-
-        step_command_template = {
-            "ring": "step_close",
-            "middle": "step_close",
-            "index": "step_close",
-            "thumb0": "step_close",
-            "thumb1": "step_close",
-        }
-
-        if self.simulation:
-            simulated_capacitive = {
-                "ok": True,
-                "available": True,
-                "simulation": True,
-                "status": {
-                    "pinky": 140,
-                    "ring": 2500,
-                    "middle": 70,
-                    "index": 2200,
-                    "thumb": 25,
-                    "palm": 240,
-                },
-                "heights": {
-                    "pinky": 1700,
-                    "ring": 1700,
-                    "middle": 1200,
-                    "index": 1700,
-                    "thumb": 1700,
-                    "palm": 1700,
-                },
-                "contacts": {
-                    "pinky": False,
-                    "ring": True,
-                    "middle": False,
-                    "index": True,
-                    "thumb": False,
-                    "palm": False,
-                },
-                "contact_count": 2,
-                "message": "Simulación: contacto detectado.",
-            }
-
-            filtered_contacts = self._filter_ignored_contacts(
-                simulated_capacitive["contacts"],
-                ignored_set
-            )
-
-            contact_count = sum(1 for value in filtered_contacts.values() if value)
-            contact_sensor = self._first_contact_sensor(filtered_contacts)
-
-            return {
-                "ok": True,
-                "message": "Simulación: agarre seguro progresivo detenido al detectar contacto.",
-                "moved": True,
-                "stopped": True,
-                "contact_detected": contact_count > 0,
-                "reason": "contact_detected" if contact_count > 0 else "timeout",
-                "elapsed_seconds": 1.2,
-                "contact_sensor": contact_sensor,
-                "contact_count": contact_count,
-                "ignored_sensors": sorted(list(ignored_set)),
-                "start_from_open": start_from_open,
-                "step_count": 4,
-                "close_step": close_step,
-                "command": step_command_template,
-                "capacitive": simulated_capacitive,
-            }
-
-        if self.hand is None:
-            return {
-                "ok": False,
-                "message": "No se puede ejecutar agarre seguro: la mano no está inicializada.",
-                "moved": False,
-                "stopped": False,
-                "contact_detected": False,
-                "reason": "hand_not_available",
-                "elapsed_seconds": 0,
-                "contact_sensor": None,
-                "contact_count": 0,
-                "ignored_sensors": sorted(list(ignored_set)),
-                "start_from_open": start_from_open,
-                "step_count": 0,
-                "close_step": close_step,
-                "command": step_command_template,
-                "capacitive": None,
-            }
-
-        if not self.capacitive_available or self.capacitive is None:
-            return {
-                "ok": False,
-                "message": "No se puede ejecutar agarre seguro: sensores capacitivos no disponibles.",
-                "moved": False,
-                "stopped": False,
-                "contact_detected": False,
-                "reason": "capacitive_not_available",
-                "elapsed_seconds": 0,
-                "contact_sensor": None,
-                "contact_count": 0,
-                "ignored_sensors": sorted(list(ignored_set)),
-                "start_from_open": start_from_open,
-                "step_count": 0,
-                "close_step": close_step,
-                "command": step_command_template,
-                "capacitive": None,
-            }
-
         last_capacitive = None
         step_count = 0
 
+        step_command_template = {
+            "target_position_id": target_position_id,
+            "type": "step_towards_position",
+            "close_step": close_step,
+        }
+
         try:
+            if self.simulation:
+                return {
+                    "ok": True,
+                    "message": "Simulación: agarre seguro progresivo ejecutado.",
+                    "moved": True,
+                    "stopped": True,
+                    "contact_detected": True,
+                    "reason": "contact_detected",
+                    "elapsed_seconds": 1.0,
+                    "contact_sensor": "index",
+                    "contact_count": 1,
+                    "ignored_sensors": sorted(list(ignored_set)),
+                    "start_from_open": start_from_open,
+                    "step_count": 4,
+                    "close_step": close_step,
+                    "target_position_id": target_position_id,
+                    "command": step_command_template,
+                    "capacitive": self.refresh_capacitive_status(),
+                }
+
+            if self.hand is None:
+                return {
+                    "ok": False,
+                    "message": "No se puede ejecutar agarre seguro: la mano no está inicializada.",
+                    "moved": False,
+                    "stopped": False,
+                    "contact_detected": False,
+                    "reason": "hand_not_available",
+                    "elapsed_seconds": 0,
+                    "contact_sensor": None,
+                    "contact_count": 0,
+                    "ignored_sensors": sorted(list(ignored_set)),
+                    "start_from_open": start_from_open,
+                    "step_count": 0,
+                    "close_step": close_step,
+                    "target_position_id": target_position_id,
+                    "command": step_command_template,
+                    "capacitive": None,
+                }
+
+            if not self.capacitive_available or self.capacitive is None:
+                return {
+                    "ok": False,
+                    "message": "No se puede ejecutar agarre seguro: sensores capacitivos no disponibles.",
+                    "moved": False,
+                    "stopped": False,
+                    "contact_detected": False,
+                    "reason": "capacitive_not_available",
+                    "elapsed_seconds": 0,
+                    "contact_sensor": None,
+                    "contact_count": 0,
+                    "ignored_sensors": sorted(list(ignored_set)),
+                    "start_from_open": start_from_open,
+                    "step_count": 0,
+                    "close_step": close_step,
+                    "target_position_id": target_position_id,
+                    "command": step_command_template,
+                    "capacitive": None,
+                }
+
             if start_from_open:
                 self.open_hand()
                 time.sleep(open_wait_seconds)
-                self.stop_hand()
-                time.sleep(pause_between_steps)
 
             initial_capacitive = self.refresh_capacitive_status()
             last_capacitive = initial_capacitive
@@ -488,26 +435,24 @@ class HandSystemController:
                     "start_from_open": start_from_open,
                     "step_count": step_count,
                     "close_step": close_step,
+                    "target_position_id": target_position_id,
                     "command": step_command_template,
                     "capacitive": initial_capacitive,
                 }
 
             grip_start_time = time.monotonic()
             consecutive_contact_counter = 0
+            last_step_target = None
 
             while time.monotonic() - grip_start_time < max_seconds:
                 step_count += 1
 
-                # Cierre real progresivo:
-                # cada vuelta solo avanza un paso pequeño, no va al tope.
-                step_target = self.hand.step_close(close_step=close_step)
+                last_step_target = self.hand.step_towards_position(
+                    position_nr=target_position_id,
+                    step_size=close_step
+                )
 
                 time.sleep(step_settle_seconds)
-
-                # Paramos tras cada paso para evitar cierre continuo.
-                self.stop_hand()
-
-                time.sleep(pause_between_steps)
 
                 capacitive_status = self.refresh_capacitive_status()
                 last_capacitive = capacitive_status
@@ -538,7 +483,8 @@ class HandSystemController:
                             "start_from_open": start_from_open,
                             "step_count": step_count,
                             "close_step": close_step,
-                            "last_step_target": step_target,
+                            "target_position_id": target_position_id,
+                            "last_step_target": last_step_target,
                             "command": step_command_template,
                             "capacitive": capacitive_status,
                         }
@@ -561,6 +507,8 @@ class HandSystemController:
                 "start_from_open": start_from_open,
                 "step_count": step_count,
                 "close_step": close_step,
+                "target_position_id": target_position_id,
+                "last_step_target": last_step_target,
                 "command": step_command_template,
                 "capacitive": last_capacitive,
             }
@@ -585,19 +533,10 @@ class HandSystemController:
                 "start_from_open": start_from_open,
                 "step_count": step_count,
                 "close_step": close_step,
+                "target_position_id": target_position_id,
                 "command": step_command_template,
                 "capacitive": last_capacitive,
             }
-        
-    def _first_contact_sensor(self, contacts: Dict[str, bool]) -> Optional[str]:
-        """
-        Devuelve el primer sensor que está detectando contacto.
-        """
-        for sensor, has_contact in contacts.items():
-            if has_contact:
-                return sensor
-
-        return None
     
     
     def _filter_ignored_contacts(
