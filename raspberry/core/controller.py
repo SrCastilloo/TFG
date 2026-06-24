@@ -143,6 +143,7 @@ class HandSystemController:
 
     def set_mode_hand(self) -> Dict[str, Any]:
         self.mode = SystemMode.HAND
+        self._play_sound_async("hand")
         return {
             "ok": True,
             "mode": self.mode.value,
@@ -1497,13 +1498,18 @@ class HandSystemController:
 
         def runner():
             try:
+                print(f"Reproduciendo sonido de modo: {sound_name}")
+
                 if sound_name == "hand":
                     self.speaker.play_hand_sound()
                 elif sound_name == "voice":
                     self.speaker.play_voice_sound()
                 elif sound_name == "camera":
                     self.speaker.play_camera_sound()
+                else:
+                    print(f"Sonido desconocido: {sound_name}")
+
             except Exception as e:
                 print(f"Error reproduciendo sonido {sound_name}: {e}")
 
-            threading.Thread(target=runner, daemon=True).start()
+        threading.Thread(target=runner, daemon=True).start()
