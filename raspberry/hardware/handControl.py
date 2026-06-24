@@ -195,10 +195,10 @@ class HandControl:
 		data.append(self.__target["ring"] & self.__mask_lsb)
 
 		''' The middle finger is not used right now, so we set it to 5000, which is the stop command for the middle finger '''
-		data.append((self.__target["middle"] & self.__mask_msb) >> 8)
-		data.append(self.__target["middle"] & self.__mask_lsb)
-		#data.append((5000 & self.__mask_msb) >> 8)
-		#data.append(5000 & self.__mask_lsb) Comentado: Lo he editado para probarlo. Modificación realizada por Daniel Castillo
+		#data.append((self.__target["middle"] & self.__mask_msb) >> 8)
+		#data.append(self.__target["middle"] & self.__mask_lsb)
+		data.append((5000 & self.__mask_msb) >> 8)
+		data.append(5000 & self.__mask_lsb) Comentado: Lo he editado para probarlo. Modificación realizada por Daniel Castillo
 
 		data.append((self.__target["index"] & self.__mask_msb) >> 8)
 		data.append(self.__target["index"] & self.__mask_lsb)
