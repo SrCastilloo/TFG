@@ -33,4 +33,13 @@ interface GripHistoryDao {
 
     @Query("DELETE FROM grip_history")
     suspend fun clear()
+
+    @Query(
+        """
+    SELECT *
+    FROM grip_history
+    ORDER BY timestampMillis DESC
+    """
+    )
+    suspend fun getAllOnce(): List<GripHistoryEntity>
 }

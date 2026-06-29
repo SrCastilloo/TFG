@@ -43,6 +43,7 @@ import com.example.myapplication.ui.screen.DemoScreen
 import com.example.myapplication.ui.screen.DiagnosticScreen
 import com.example.myapplication.ui.screen.CapacitiveScreen
 import com.example.myapplication.ui.screen.AnalyticsScreen
+import com.example.myapplication.ui.screen.GripHistoryScreen
 
 
 private const val VOICE_CONTROL_ROUTE = "voice_control"
@@ -149,6 +150,13 @@ fun AppNavigation() {
 
                     composable(AppRoutes.ANALYTICS) {
                         AnalyticsScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenGripHistory = { navController.navigate(AppRoutes.GRIP_HISTORY) }
+                        )
+                    }
+
+                    composable(AppRoutes.GRIP_HISTORY) {
+                        GripHistoryScreen(
                             onBack = { navController.popBackStack() }
                         )
                     }

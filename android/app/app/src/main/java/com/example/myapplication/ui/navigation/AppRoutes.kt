@@ -8,4 +8,6 @@ object AppRoutes {
     const val VOICE = "voice"
     const val ASSISTANT = "assistant"
     const val ANALYTICS = "analytics"
+    const val GRIP_HISTORY = "grip_history"
+
 }

@@ -54,10 +54,20 @@
     import com.example.myapplication.ui.viewmodel.GripTargetUsageUi
     import com.example.myapplication.ui.viewmodel.GripTypeUsageUi
     import java.util.Locale
+    import android.content.Intent
+    import android.widget.Toast
+    import androidx.compose.material.icons.rounded.FileDownload
+    import androidx.compose.material3.Button
+    import androidx.compose.material3.ButtonDefaults
+    import androidx.compose.runtime.rememberCoroutineScope
+    import androidx.compose.ui.platform.LocalContext
+    import com.example.myapplication.ui.export.GripHistoryCsvExporter
+    import kotlinx.coroutines.launch
 
     @Composable
     fun AnalyticsScreen(
         onBack: () -> Unit,
+        onOpenGripHistory: () -> Unit,
         viewModel: AnalyticsViewModel = viewModel()
     ) {
         val uiState by viewModel.uiState.collectAsState()
@@ -94,6 +104,16 @@
                 }
                 item {
                     GripAnalyticsSummaryCard(uiState = uiState)
+                }
+                item {
+                    ExportGripHistoryCard(totalGrips = uiState.totalGrips)
+                }
+
+                item {
+                    OpenGripHistoryCard(
+                        totalGrips = uiState.totalGrips,
+                        onClick = onOpenGripHistory
+                    )
                 }
 
                 item {
@@ -620,7 +640,200 @@
             }
         }
     }
+    @Composable
+    private fun ExportGripHistoryCard(
+        totalGrips: Int
+    ) {
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
 
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White.copy(alpha = 0.08f)
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = Color(0xFF38BDF8).copy(alpha = 0.18f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.FileDownload,
+                            contentDescription = null,
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier
+                                .padding(10.dp)
+                                .size(24.dp)
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "Exportar histórico",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+
+                        Text(
+                            text = "Genera un CSV con todos los agarres registrados.",
+                            color = Color(0xFF94A3B8),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Registros disponibles: $totalGrips",
+                    color = Color(0xFFCBD5E1),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Button(
+                    enabled = totalGrips > 0,
+                    onClick = {
+                        scope.launch {
+                            try {
+                                val uri = GripHistoryCsvExporter.exportGripHistory(context)
+
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/csv"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    putExtra(Intent.EXTRA_SUBJECT, "Historial de agarres")
+                                    putExtra(
+                                        Intent.EXTRA_TEXT,
+                                        "CSV generado desde la app de control de la mano robótica."
+                                    )
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+
+                                context.startActivity(
+                                    Intent.createChooser(
+                                        shareIntent,
+                                        "Exportar historial de agarres"
+                                    )
+                                )
+                            } catch (e: Exception) {
+                                Toast.makeText(
+                                    context,
+                                    "No se pudo exportar el CSV: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF2563EB),
+                        contentColor = Color.White,
+                        disabledContainerColor = Color.White.copy(alpha = 0.10f),
+                        disabledContentColor = Color(0xFF94A3B8)
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.FileDownload,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+
+                    Spacer(modifier = Modifier.size(8.dp))
+
+                    Text(
+                        text = "Exportar CSV",
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun OpenGripHistoryCard(
+        totalGrips: Int,
+        onClick: () -> Unit
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF0F172A)
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = Color(0xFF14B8A6).copy(alpha = 0.18f)
+                    ) {
+                        Text(
+                            text = "🦾",
+                            modifier = Modifier.padding(10.dp),
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "Histórico detallado",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+
+                        Text(
+                            text = "Consulta cada agarre ejecutado con sensores, tiempo y resultado.",
+                            color = Color(0xFF94A3B8),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Registros disponibles: $totalGrips",
+                    color = Color(0xFFCBD5E1),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Button(
+                    enabled = totalGrips > 0,
+                    onClick = onClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF14B8A6),
+                        contentColor = Color.White,
+                        disabledContainerColor = Color.White.copy(alpha = 0.10f),
+                        disabledContentColor = Color(0xFF94A3B8)
+                    )
+                ) {
+                    Text(
+                        text = "Ver histórico de agarres",
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+        }
+    }
     @Composable
     private fun GripTargetPositionsCard(
         targets: List<GripTargetUsageUi>
