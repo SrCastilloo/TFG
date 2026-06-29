@@ -10,6 +10,7 @@ import com.example.myapplication.data.remote.dto.SafeGripDto
 import com.example.myapplication.data.remote.dto.SafeGripRequest
 import com.example.myapplication.data.repository.TfgRepository
 import com.example.myapplication.ui.history.ActionHistoryStore
+import com.example.myapplication.ui.settings.GripSettingsStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,7 +65,32 @@ class CapacitiveViewModel : ViewModel() {
     val uiState: StateFlow<CapacitiveUiState> = _uiState.asStateFlow()
 
     init {
+        observeGripSettings()
         loadStatus()
+    }
+
+    private fun observeGripSettings() {
+        viewModelScope.launch {
+            GripSettingsStore.settings.collect { settings ->
+                val speed = runCatching {
+                    GripSpeed.valueOf(settings.gripSpeedName)
+                }.getOrDefault(GripSpeed.MEDIUM)
+
+                _uiState.value = _uiState.value.copy(
+                    ignoredSensors = settings.ignoredSensors,
+                    gripSpeed = speed,
+                    targetPositionId = settings.targetPositionId.coerceIn(0, 8)
+                )
+            }
+        }
+    }
+
+    private fun persistGripSettings(state: CapacitiveUiState = _uiState.value) {
+        GripSettingsStore.save(
+            ignoredSensors = state.ignoredSensors,
+            gripSpeedName = state.gripSpeed.name,
+            targetPositionId = state.targetPositionId
+        )
     }
 
     fun loadStatus() {
@@ -144,32 +170,45 @@ class CapacitiveViewModel : ViewModel() {
             current + sensor
         }
 
-        _uiState.value = _uiState.value.copy(
+        val newState = _uiState.value.copy(
             ignoredSensors = updated
         )
+
+        _uiState.value = newState
+        persistGripSettings(newState)
     }
 
     fun setGripSpeed(speed: GripSpeed) {
-        _uiState.value = _uiState.value.copy(
+        val newState = _uiState.value.copy(
             gripSpeed = speed
         )
+
+        _uiState.value = newState
+        persistGripSettings(newState)
     }
 
     fun increaseTargetPosition() {
         val current = _uiState.value.targetPositionId
 
-        _uiState.value = _uiState.value.copy(
+        val newState = _uiState.value.copy(
             targetPositionId = (current + 1).coerceAtMost(8)
         )
+
+        _uiState.value = newState
+        persistGripSettings(newState)
     }
 
     fun decreaseTargetPosition() {
         val current = _uiState.value.targetPositionId
 
-        _uiState.value = _uiState.value.copy(
+        val newState = _uiState.value.copy(
             targetPositionId = (current - 1).coerceAtLeast(0)
         )
+
+        _uiState.value = newState
+        persistGripSettings(newState)
     }
+
 
     private fun buildSafeGripRequest(): SafeGripRequest {
         val state = _uiState.value
