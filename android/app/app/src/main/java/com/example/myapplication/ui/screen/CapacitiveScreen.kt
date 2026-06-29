@@ -805,6 +805,17 @@ private fun SafeGripCard(
                             fontWeight = FontWeight.ExtraBold,
                             style = MaterialTheme.typography.bodyMedium
                         )
+                        Text(
+                            text = "Pasos: ${safeGripResult.step_count ?: 0} · Tamaño paso: ${safeGripResult.close_step ?: 0}",
+                            color = Color(0xFF64748B),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+
+                        Text(
+                            text = "Posición objetivo: ${safeGripResult.target_position_id ?: "-"}",
+                            color = Color(0xFF64748B),
+                            style = MaterialTheme.typography.bodySmall
+                        )
 
                         Text(
                             text = "Contacto: ${if (safeGripResult.contact_detected == true) "sí" else "no"} · Sensor: ${friendlySafeGripSensor(safeGripResult.contact_sensor)}",

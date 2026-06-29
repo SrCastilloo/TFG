@@ -90,10 +90,16 @@ class TfgRepository(
     suspend fun safeGrip(): SafeGripDto {
         return apiService.safeGrip(
             SafeGripRequest(
-                max_seconds = 4.0,
-                poll_interval = 0.15,
+                max_seconds = 15.0,
+                poll_interval = 0.08,
                 consecutive_reads = 2,
-                ignored_sensors = listOf("ring")
+                ignored_sensors = listOf("ring", "palm"),
+                start_from_open = true,
+                open_wait_seconds = 3.0,
+                target_position_id = 2,
+                close_step = 30,
+                step_settle_seconds = 0.20,
+                pause_between_steps = 0.0
             )
         )
     }

@@ -1,13 +1,16 @@
 package com.example.myapplication.data.remote.dto
+
 data class SafeGripRequest(
-    val max_seconds: Double = 8.0,
+    val max_seconds: Double = 15.0,
     val poll_interval: Double = 0.08,
     val consecutive_reads: Int = 2,
-    val ignored_sensors: List<String> = listOf("ring"),
+    val ignored_sensors: List<String> = listOf("ring", "palm"),
     val start_from_open: Boolean = true,
     val open_wait_seconds: Double = 3.0,
-    val close_pulse_seconds: Double = 0.20,
-    val pause_between_pulses: Double = 0.12
+    val target_position_id: Int = 2,
+    val close_step: Int = 30,
+    val step_settle_seconds: Double = 0.20,
+    val pause_between_steps: Double = 0.0
 )
 
 data class SafeGripDto(
@@ -20,10 +23,12 @@ data class SafeGripDto(
     val elapsed_seconds: Double?,
     val contact_sensor: String?,
     val contact_count: Int?,
-    val command: Map<String, String>?,
-    val capacitive: CapacitiveDto?,
     val ignored_sensors: List<String>?,
     val start_from_open: Boolean?,
-    val pulse_count: Int?,
-    val close_pulse_seconds: Double?,
+    val step_count: Int?,
+    val close_step: Int?,
+    val target_position_id: Int?,
+    val last_step_target: Map<String, Int>?,
+    val command: Map<String, Any>?,
+    val capacitive: CapacitiveDto?
 )
