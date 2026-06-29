@@ -9,13 +9,14 @@ import com.example.myapplication.ui.navigation.AppNavigation
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.example.myapplication.ui.history.ActionHistoryStore
 import com.example.myapplication.ui.settings.GripSettingsStore
-
+import com.example.myapplication.ui.history.GripHistoryStore
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ApiClient.init(applicationContext)
         ActionHistoryStore.init(applicationContext)
         GripSettingsStore.init(applicationContext)
+        GripHistoryStore.init(applicationContext)
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {

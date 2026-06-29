@@ -14,6 +14,7 @@ import com.example.myapplication.ui.settings.GripSettingsStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.example.myapplication.ui.history.GripHistoryStore
 import kotlinx.coroutines.launch
 
 enum class GripSpeed(
@@ -255,9 +256,16 @@ class CapacitiveViewModel : ViewModel() {
                 safeGripResult = null
             )
 
+            val request = buildSafeGripRequest()
+            val startMillis = System.currentTimeMillis()
+
             try {
-                val request = buildSafeGripRequest()
                 val response = repository.safeGrip(request)
+
+                GripHistoryStore.addSafeGrip(
+                    response = response,
+                    request = request
+                )
 
                 ActionHistoryStore.add(
                     source = "Capacitivos",
@@ -275,6 +283,14 @@ class CapacitiveViewModel : ViewModel() {
                 )
             } catch (e: Exception) {
                 val errorMessage = e.message ?: "Error desconocido ejecutando agarre seguro."
+
+                val elapsedSeconds = (System.currentTimeMillis() - startMillis) / 1000.0
+
+                GripHistoryStore.addSafeGripFailure(
+                    request = request,
+                    errorMessage = errorMessage,
+                    elapsedSeconds = elapsedSeconds
+                )
 
                 ActionHistoryStore.add(
                     source = "Capacitivos",
@@ -302,9 +318,16 @@ class CapacitiveViewModel : ViewModel() {
                 fullGripResult = null
             )
 
+            val request = buildFullGripRequest()
+            val startMillis = System.currentTimeMillis()
+
             try {
-                val request = buildFullGripRequest()
                 val response = repository.fullGrip(request)
+
+                GripHistoryStore.addFullGrip(
+                    response = response,
+                    request = request
+                )
 
                 ActionHistoryStore.add(
                     source = "Capacitivos",
@@ -322,6 +345,14 @@ class CapacitiveViewModel : ViewModel() {
                 )
             } catch (e: Exception) {
                 val errorMessage = e.message ?: "Error desconocido ejecutando agarre completo."
+
+                val elapsedSeconds = (System.currentTimeMillis() - startMillis) / 1000.0
+
+                GripHistoryStore.addFullGripFailure(
+                    request = request,
+                    errorMessage = errorMessage,
+                    elapsedSeconds = elapsedSeconds
+                )
 
                 ActionHistoryStore.add(
                     source = "Capacitivos",

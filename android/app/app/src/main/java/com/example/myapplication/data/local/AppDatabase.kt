@@ -8,15 +8,18 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.myapplication.data.local.grip.GripSettingsDao
 import com.example.myapplication.data.local.grip.GripSettingsEntity
+import com.example.myapplication.data.local.grip_history.GripHistoryDao
+import com.example.myapplication.data.local.grip_history.GripHistoryEntity
 import com.example.myapplication.data.local.history.ActionHistoryDao
 import com.example.myapplication.data.local.history.ActionHistoryEntity
 
 @Database(
     entities = [
         ActionHistoryEntity::class,
-        GripSettingsEntity::class
+        GripSettingsEntity::class,
+        GripHistoryEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -24,6 +27,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun actionHistoryDao(): ActionHistoryDao
 
     abstract fun gripSettingsDao(): GripSettingsDao
+
+    abstract fun gripHistoryDao(): GripHistoryDao
 
     companion object {
         @Volatile
@@ -45,6 +50,36 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS grip_history (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        timestampMillis INTEGER NOT NULL,
+                        gripType TEXT NOT NULL,
+                        ok INTEGER NOT NULL,
+                        reason TEXT,
+                        message TEXT,
+                        elapsedSeconds REAL,
+                        stepCount INTEGER,
+                        closeStep INTEGER,
+                        targetPositionId INTEGER,
+                        contactDetected INTEGER,
+                        contactSensor TEXT,
+                        allContactsDetected INTEGER,
+                        activeSensorsCsv TEXT,
+                        contactSensorsCsv TEXT,
+                        missingSensorsCsv TEXT,
+                        contactCount INTEGER,
+                        requiredContactCount INTEGER,
+                        ignoredSensorsCsv TEXT
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -52,7 +87,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "tfg_local_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .fallbackToDestructiveMigration()
                     .build()
 
