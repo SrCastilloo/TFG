@@ -51,6 +51,7 @@ import com.example.myapplication.data.remote.dto.CapacitiveDto
 import com.example.myapplication.data.remote.dto.FullGripDto
 import com.example.myapplication.data.remote.dto.SafeGripDto
 import com.example.myapplication.ui.viewmodel.CapacitiveViewModel
+import com.example.myapplication.ui.viewmodel.GripSpeed
 
 @Composable
 fun CapacitiveScreen(
@@ -94,6 +95,13 @@ fun CapacitiveScreen(
                 fullGripResult = uiState.fullGripResult,
                 isFullGripLoading = uiState.isFullGripLoading,
                 onFullGrip = { viewModel.startFullGrip() },
+                ignoredSensors = uiState.ignoredSensors,
+                gripSpeed = uiState.gripSpeed,
+                targetPositionId = uiState.targetPositionId,
+                onToggleIgnoredSensor = { viewModel.toggleIgnoredSensor(it) },
+                onGripSpeedSelected = { viewModel.setGripSpeed(it) },
+                onIncreaseTargetPosition = { viewModel.increaseTargetPosition() },
+                onDecreaseTargetPosition = { viewModel.decreaseTargetPosition() },
             )
         } else {
             CapacitivePortraitContent(
@@ -110,6 +118,13 @@ fun CapacitiveScreen(
                 fullGripResult = uiState.fullGripResult,
                 isFullGripLoading = uiState.isFullGripLoading,
                 onFullGrip = { viewModel.startFullGrip() },
+                ignoredSensors = uiState.ignoredSensors,
+                gripSpeed = uiState.gripSpeed,
+                targetPositionId = uiState.targetPositionId,
+                onToggleIgnoredSensor = { viewModel.toggleIgnoredSensor(it) },
+                onGripSpeedSelected = { viewModel.setGripSpeed(it) },
+                onIncreaseTargetPosition = { viewModel.increaseTargetPosition() },
+                onDecreaseTargetPosition = { viewModel.decreaseTargetPosition() },
             )
         }
     }
@@ -129,7 +144,14 @@ private fun CapacitivePortraitContent(
     onSafeGrip: () -> Unit,
     fullGripResult: FullGripDto?,
     isFullGripLoading: Boolean,
-    onFullGrip: () -> Unit
+    onFullGrip: () -> Unit,
+    ignoredSensors: Set<String>,
+    gripSpeed: GripSpeed,
+    targetPositionId: Int,
+    onToggleIgnoredSensor: (String) -> Unit,
+    onGripSpeedSelected: (GripSpeed) -> Unit,
+    onIncreaseTargetPosition: () -> Unit,
+    onDecreaseTargetPosition: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -159,6 +181,18 @@ private fun CapacitivePortraitContent(
             CapacitiveHeroCard(compact = compact)
         }
 
+        item {
+            GripConfigurationCard(
+                ignoredSensors = ignoredSensors,
+                gripSpeed = gripSpeed,
+                targetPositionId = targetPositionId,
+                onToggleIgnoredSensor = onToggleIgnoredSensor,
+                onGripSpeedSelected = onGripSpeedSelected,
+                onIncreaseTargetPosition = onIncreaseTargetPosition,
+                onDecreaseTargetPosition = onDecreaseTargetPosition,
+                compact = compact
+            )
+        }
         item {
             SafeGripCard(
                 safeGripResult = safeGripResult,
@@ -209,6 +243,13 @@ private fun CapacitiveLandscapeContent(
     fullGripResult: FullGripDto?,
     isFullGripLoading: Boolean,
     onFullGrip: () -> Unit,
+    ignoredSensors: Set<String>,
+    gripSpeed: GripSpeed,
+    targetPositionId: Int,
+    onToggleIgnoredSensor: (String) -> Unit,
+    onGripSpeedSelected: (GripSpeed) -> Unit,
+    onIncreaseTargetPosition: () -> Unit,
+    onDecreaseTargetPosition: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -243,6 +284,19 @@ private fun CapacitiveLandscapeContent(
 
             item {
                 CapacitiveHeroCard(compact = compact)
+            }
+
+            item {
+                GripConfigurationCard(
+                    ignoredSensors = ignoredSensors,
+                    gripSpeed = gripSpeed,
+                    targetPositionId = targetPositionId,
+                    onToggleIgnoredSensor = onToggleIgnoredSensor,
+                    onGripSpeedSelected = onGripSpeedSelected,
+                    onIncreaseTargetPosition = onIncreaseTargetPosition,
+                    onDecreaseTargetPosition = onDecreaseTargetPosition,
+                    compact = compact
+                )
             }
 
             item {
@@ -729,6 +783,264 @@ private fun friendlySensorName(sensorName: String): String {
 
 
 @Composable
+private fun GripConfigurationCard(
+    ignoredSensors: Set<String>,
+    gripSpeed: GripSpeed,
+    targetPositionId: Int,
+    onToggleIgnoredSensor: (String) -> Unit,
+    onGripSpeedSelected: (GripSpeed) -> Unit,
+    onIncreaseTargetPosition: () -> Unit,
+    onDecreaseTargetPosition: () -> Unit,
+    compact: Boolean
+) {
+    val sensors = listOf(
+        "pinky" to "Meñique",
+        "ring" to "Anular",
+        "middle" to "Medio",
+        "index" to "Índice",
+        "thumb" to "Pulgar",
+        "palm" to "Palma"
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(if (compact) 22.dp else 28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF111827)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(if (compact) 16.dp else 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = "⚙️ Configuración de agarre",
+                color = Color.White,
+                style = if (compact) {
+                    MaterialTheme.typography.titleMedium
+                } else {
+                    MaterialTheme.typography.titleLarge
+                },
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Text(
+                text = "Ajusta qué sensores se ignoran y cómo de rápido se cierra la mano.",
+                color = Color(0xFFCBD5E1),
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Text(
+                text = "Sensores ignorados",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                sensors.chunked(3).forEach { rowSensors ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowSensors.forEach { (sensorKey, sensorLabel) ->
+                            GripConfigChip(
+                                text = sensorLabel,
+                                selected = sensorKey in ignoredSensors,
+                                selectedText = "✓ $sensorLabel",
+                                onClick = { onToggleIgnoredSensor(sensorKey) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        repeat(3 - rowSensors.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+
+            Text(
+                text = "Velocidad de cierre",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                GripSpeed.values().forEach { speed ->
+                    GripConfigChip(
+                        text = speed.label,
+                        selected = gripSpeed == speed,
+                        selectedText = "✓ ${speed.label}",
+                        onClick = { onGripSpeedSelected(speed) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                color = Color.White.copy(alpha = 0.08f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Posición objetivo del agarre seguro",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = onDecreaseTargetPosition,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White.copy(alpha = 0.12f),
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text(
+                                text = "-",
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFF14B8A6).copy(alpha = 0.20f)
+                        ) {
+                            Text(
+                                text = targetPositionId.toString(),
+                                modifier = Modifier.padding(vertical = 12.dp),
+                                color = Color(0xFF99F6E4),
+                                fontWeight = FontWeight.ExtraBold,
+                                style = MaterialTheme.typography.titleLarge,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+
+                        Button(
+                            onClick = onIncreaseTargetPosition,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White.copy(alpha = 0.12f),
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text(
+                                text = "+",
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+                }
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                color = Color(0xFF0F766E).copy(alpha = 0.20f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Configuración enviada",
+                        color = Color(0xFF99F6E4),
+                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    Text(
+                        text = "Ignorados: ${friendlyIgnoredSensors(ignoredSensors)}",
+                        color = Color(0xFFCCFBF1),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Text(
+                        text = "Velocidad: ${gripSpeed.label} · Paso: ${gripSpeed.closeStep} · Posición: $targetPositionId",
+                        color = Color(0xFFCCFBF1),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GripConfigChip(
+    text: String,
+    selected: Boolean,
+    selectedText: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val background = if (selected) {
+        Color(0xFF14B8A6).copy(alpha = 0.22f)
+    } else {
+        Color.White.copy(alpha = 0.08f)
+    }
+
+    val contentColor = if (selected) {
+        Color(0xFF99F6E4)
+    } else {
+        Color(0xFFE5E7EB)
+    }
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(999.dp),
+        color = background,
+        onClick = onClick
+    ) {
+        Text(
+            text = if (selected) selectedText else text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
+            color = contentColor,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+private fun friendlyIgnoredSensors(sensors: Set<String>): String {
+    if (sensors.isEmpty()) return "ninguno"
+
+    return sensors.joinToString(", ") { sensor ->
+        when (sensor) {
+            "pinky" -> "meñique"
+            "ring" -> "anular"
+            "middle" -> "medio"
+            "index" -> "índice"
+            "thumb" -> "pulgar"
+            "palm" -> "palma"
+            else -> sensor
+        }
+    }
+}
+
+@Composable
 private fun SafeGripCard(
     safeGripResult: SafeGripDto?,
     isLoading: Boolean,
@@ -828,6 +1140,18 @@ private fun SafeGripCard(
                             color = Color(0xFF64748B),
                             style = MaterialTheme.typography.bodySmall
                         )
+
+                        Text(
+                            text = "Pasos: ${safeGripResult.step_count ?: 0} · Paso: ${safeGripResult.close_step ?: 0} · Posición: ${safeGripResult.target_position_id ?: "-"}",
+                            color = Color(0xFF64748B),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+
+                        Text(
+                            text = "Ignorados: ${friendlyFullGripSensorList(safeGripResult.ignored_sensors)}",
+                            color = Color(0xFF64748B),
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
             }
@@ -887,7 +1211,7 @@ private fun FullGripCard(
                     )
 
                     Text(
-                        text = "Ignora: anular · Paso: cierre progresivo",
+                        text = "Los sensores se pueden ignorar desde la tarjeta superior",
                         color = Color(0xFF5B21B6),
                         style = MaterialTheme.typography.bodySmall
                     )

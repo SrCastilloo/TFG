@@ -7,11 +7,13 @@ import androidx.activity.enableEdgeToEdge
 import com.example.myapplication.data.remote.ApiClient
 import com.example.myapplication.ui.navigation.AppNavigation
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import com.example.myapplication.ui.history.ActionHistoryStore
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ApiClient.init(applicationContext)
+        ActionHistoryStore.init(applicationContext)
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {

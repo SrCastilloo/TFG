@@ -150,6 +150,14 @@ private val QuickGradient = Brush.linearGradient(
     )
 )
 
+private val AnalyticsGradient = Brush.linearGradient(
+    listOf(
+        Color(0xFF0EA5E9),
+        Color(0xFF6366F1),
+        Color(0xFFA855F7)
+    )
+)
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Model
 // ─────────────────────────────────────────────────────────────────────────────
@@ -174,7 +182,8 @@ fun DashboardScreen(
     onGoToCamera: () -> Unit,
     onGoToAssistant: () -> Unit,
     onGoToVoice: () -> Unit,
-    onGoToDemo: () -> Unit
+    onGoToDemo: () -> Unit,
+    onGoToAnalytics:() -> Unit
 ) {
     val featuredItem = DashboardItem(
         title = "Control de la mano",
@@ -193,6 +202,14 @@ fun DashboardScreen(
             badge = "Revisión",
             gradient = StatusGradient,
             onClick = onGoToStatus
+        ),
+        DashboardItem(
+            title = "Estadísticas",
+            subtitle = "Consulta qué funciones se usan más, tasa de éxito y actividad reciente.",
+            emoji = "📊",
+            badge = "Analítica",
+            gradient = AnalyticsGradient,
+            onClick = onGoToAnalytics
         ),
         DashboardItem(
             title = "Cámara",

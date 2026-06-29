@@ -87,37 +87,12 @@ class TfgRepository(
         return apiService.refreshCapacitiveStatus()
     }
 
-    suspend fun safeGrip(): SafeGripDto {
-        return apiService.safeGrip(
-            SafeGripRequest(
-                max_seconds = 15.0,
-                poll_interval = 0.08,
-                consecutive_reads = 2,
-                ignored_sensors = listOf("ring", "palm"),
-                start_from_open = true,
-                open_wait_seconds = 3.0,
-                target_position_id = 2,
-                close_step = 30,
-                step_settle_seconds = 0.20,
-                pause_between_steps = 0.0
-            )
-        )
+    suspend fun safeGrip(request: SafeGripRequest): SafeGripDto {
+        return apiService.safeGrip(request)
     }
-    suspend fun fullGrip(): FullGripDto {
-        return apiService.fullGrip(
-            FullGripRequest(
-                max_seconds = 15.0,
-                poll_interval = 0.08,
-                consecutive_reads = 2,
-                ignored_sensors = listOf("ring"),
-                required_sensors = null,
-                start_from_open = true,
-                open_wait_seconds = 3.0,
-                close_step = 20,
-                step_settle_seconds = 0.12,
-                pause_between_steps = 0.20
-            )
-        )
+
+    suspend fun fullGrip(request: FullGripRequest): FullGripDto {
+        return apiService.fullGrip(request)
     }
     suspend fun setModeHandVoice(): ModeDto {
         return apiService.setModeHandVoice()

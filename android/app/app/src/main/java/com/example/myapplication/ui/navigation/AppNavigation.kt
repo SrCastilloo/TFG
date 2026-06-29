@@ -42,6 +42,8 @@ import com.example.myapplication.ui.screen.VoiceControlScreen
 import com.example.myapplication.ui.screen.DemoScreen
 import com.example.myapplication.ui.screen.DiagnosticScreen
 import com.example.myapplication.ui.screen.CapacitiveScreen
+import com.example.myapplication.ui.screen.AnalyticsScreen
+
 
 private const val VOICE_CONTROL_ROUTE = "voice_control"
 private const val SETTINGS_ROUTE = "connection_settings"
@@ -139,7 +141,15 @@ fun AppNavigation() {
                             onGoToCamera = { navController.navigate(AppRoutes.CAMERA) },
                             onGoToAssistant = { navController.navigate(AppRoutes.ASSISTANT) },
                             onGoToVoice = { navController.navigate(VOICE_CONTROL_ROUTE) },
-                            onGoToDemo = { navController.navigate(DEMO_ROUTE) }
+                            onGoToDemo = { navController.navigate(DEMO_ROUTE) },
+                            onGoToAnalytics = { navController.navigate(AppRoutes.ANALYTICS) }
+
+                        )
+                    }
+
+                    composable(AppRoutes.ANALYTICS) {
+                        AnalyticsScreen(
+                            onBack = { navController.popBackStack() }
                         )
                     }
 

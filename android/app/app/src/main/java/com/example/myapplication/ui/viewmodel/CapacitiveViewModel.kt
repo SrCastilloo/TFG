@@ -4,25 +4,55 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.data.remote.ApiClient
 import com.example.myapplication.data.remote.dto.CapacitiveDto
+import com.example.myapplication.data.remote.dto.FullGripDto
+import com.example.myapplication.data.remote.dto.FullGripRequest
 import com.example.myapplication.data.remote.dto.SafeGripDto
+import com.example.myapplication.data.remote.dto.SafeGripRequest
 import com.example.myapplication.data.repository.TfgRepository
 import com.example.myapplication.ui.history.ActionHistoryStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import com.example.myapplication.data.remote.dto.FullGripDto
 
+enum class GripSpeed(
+    val label: String,
+    val closeStep: Int,
+    val stepSettleSeconds: Double
+) {
+    SLOW(
+        label = "Lenta",
+        closeStep = 15,
+        stepSettleSeconds = 0.25
+    ),
+    MEDIUM(
+        label = "Media",
+        closeStep = 30,
+        stepSettleSeconds = 0.20
+    ),
+    FAST(
+        label = "Rápida",
+        closeStep = 50,
+        stepSettleSeconds = 0.15
+    )
+}
 
 data class CapacitiveUiState(
     val isLoading: Boolean = false,
     val isSafeGripLoading: Boolean = false,
+    val isFullGripLoading: Boolean = false,
+
     val data: CapacitiveDto? = null,
     val safeGripResult: SafeGripDto? = null,
+    val fullGripResult: FullGripDto? = null,
+
     val message: String? = null,
     val error: String? = null,
-    val isFullGripLoading: Boolean = false,
-    val fullGripResult: FullGripDto? = null
+
+    // Configuración común para agarre seguro y completo
+    val ignoredSensors: Set<String> = setOf("ring", "palm", "middle"),
+    val gripSpeed: GripSpeed = GripSpeed.MEDIUM,
+    val targetPositionId: Int = 2
 )
 
 class CapacitiveViewModel : ViewModel() {
@@ -105,6 +135,76 @@ class CapacitiveViewModel : ViewModel() {
         }
     }
 
+    fun toggleIgnoredSensor(sensor: String) {
+        val current = _uiState.value.ignoredSensors
+
+        val updated = if (sensor in current) {
+            current - sensor
+        } else {
+            current + sensor
+        }
+
+        _uiState.value = _uiState.value.copy(
+            ignoredSensors = updated
+        )
+    }
+
+    fun setGripSpeed(speed: GripSpeed) {
+        _uiState.value = _uiState.value.copy(
+            gripSpeed = speed
+        )
+    }
+
+    fun increaseTargetPosition() {
+        val current = _uiState.value.targetPositionId
+
+        _uiState.value = _uiState.value.copy(
+            targetPositionId = (current + 1).coerceAtMost(8)
+        )
+    }
+
+    fun decreaseTargetPosition() {
+        val current = _uiState.value.targetPositionId
+
+        _uiState.value = _uiState.value.copy(
+            targetPositionId = (current - 1).coerceAtLeast(0)
+        )
+    }
+
+    private fun buildSafeGripRequest(): SafeGripRequest {
+        val state = _uiState.value
+
+        return SafeGripRequest(
+            max_seconds = 15.0,
+            poll_interval = 0.08,
+            consecutive_reads = 2,
+            ignored_sensors = state.ignoredSensors.toList().sorted(),
+            start_from_open = true,
+            open_wait_seconds = 3.0,
+            target_position_id = state.targetPositionId,
+            close_step = state.gripSpeed.closeStep,
+            step_settle_seconds = state.gripSpeed.stepSettleSeconds,
+            pause_between_steps = 0.0
+        )
+    }
+
+    private fun buildFullGripRequest(): FullGripRequest {
+        val state = _uiState.value
+
+        return FullGripRequest(
+            max_seconds = 15.0,
+            poll_interval = 0.08,
+            consecutive_reads = 2,
+            ignored_sensors = state.ignoredSensors.toList().sorted(),
+            required_sensors = null,
+            start_from_open = true,
+            open_wait_seconds = 3.0,
+            close_step = state.gripSpeed.closeStep,
+            step_settle_seconds = state.gripSpeed.stepSettleSeconds,
+            pause_between_steps = 0.20
+        )
+    }
+
     fun startSafeGrip() {
         if (_uiState.value.isSafeGripLoading) return
 
@@ -117,12 +217,13 @@ class CapacitiveViewModel : ViewModel() {
             )
 
             try {
-                val response = repository.safeGrip()
+                val request = buildSafeGripRequest()
+                val response = repository.safeGrip(request)
 
                 ActionHistoryStore.add(
                     source = "Capacitivos",
                     title = "Agarre seguro",
-                    detail = response.message ?: "Agarre seguro ejecutado.",
+                    detail = "${response.message ?: "Agarre seguro ejecutado."} · Ignorados: ${request.ignored_sensors.joinToString(", ")}",
                     success = response.ok
                 )
 
@@ -150,6 +251,7 @@ class CapacitiveViewModel : ViewModel() {
             }
         }
     }
+
     fun startFullGrip() {
         if (_uiState.value.isFullGripLoading) return
 
@@ -162,12 +264,13 @@ class CapacitiveViewModel : ViewModel() {
             )
 
             try {
-                val response = repository.fullGrip()
+                val request = buildFullGripRequest()
+                val response = repository.fullGrip(request)
 
                 ActionHistoryStore.add(
                     source = "Capacitivos",
                     title = "Agarre completo",
-                    detail = response.message ?: "Agarre completo ejecutado.",
+                    detail = "${response.message ?: "Agarre completo ejecutado."} · Ignorados: ${request.ignored_sensors.joinToString(", ")}",
                     success = response.ok
                 )
 

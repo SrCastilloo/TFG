@@ -7,4 +7,5 @@ object AppRoutes {
     const val CAMERA = "camera"
     const val VOICE = "voice"
     const val ASSISTANT = "assistant"
+    const val ANALYTICS = "analytics"
 }

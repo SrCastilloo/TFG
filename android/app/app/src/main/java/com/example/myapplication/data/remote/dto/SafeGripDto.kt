@@ -4,7 +4,7 @@ data class SafeGripRequest(
     val max_seconds: Double = 15.0,
     val poll_interval: Double = 0.08,
     val consecutive_reads: Int = 2,
-    val ignored_sensors: List<String> = listOf("ring", "palm"),
+    val ignored_sensors: List<String> = listOf("ring", "palm", "middle"),
     val start_from_open: Boolean = true,
     val open_wait_seconds: Double = 3.0,
     val target_position_id: Int = 2,
@@ -28,7 +28,7 @@ data class SafeGripDto(
     val step_count: Int?,
     val close_step: Int?,
     val target_position_id: Int?,
-    val last_step_target: Map<String, Int>?,
+    val last_step_target: Map<String, Int>? = null,
     val command: Map<String, Any>?,
     val capacitive: CapacitiveDto?
 )

@@ -4,12 +4,12 @@ data class FullGripRequest(
     val max_seconds: Double = 15.0,
     val poll_interval: Double = 0.08,
     val consecutive_reads: Int = 2,
-    val ignored_sensors: List<String> = listOf("ring"),
+    val ignored_sensors: List<String> = listOf("ring", "palm", "middle"),
     val required_sensors: List<String>? = null,
     val start_from_open: Boolean = true,
     val open_wait_seconds: Double = 3.0,
-    val close_step: Int = 20,
-    val step_settle_seconds: Double = 0.12,
+    val close_step: Int = 30,
+    val step_settle_seconds: Double = 0.20,
     val pause_between_steps: Double = 0.20
 )
 
