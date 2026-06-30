@@ -5,7 +5,6 @@ import com.example.myapplication.data.remote.dto.BasicResponseDto
 import com.example.myapplication.data.remote.dto.HandPositionsDto
 import com.example.myapplication.data.remote.dto.SystemInfoDto
 import com.example.myapplication.data.remote.dto.CameraDetectionDto
-import com.example.myapplication.data.remote.dto.AssistantChatRequestDto
 import com.example.myapplication.data.remote.dto.AssistantChatResponseDto
 import com.example.myapplication.data.remote.dto.VoiceDetectResponse
 import com.example.myapplication.data.remote.dto.VoiceMoveResponse
@@ -16,7 +15,7 @@ import com.example.myapplication.data.remote.dto.FullGripRequest
 import com.example.myapplication.data.remote.dto.ModeDto
 import com.example.myapplication.data.remote.dto.SafeGripDto
 import com.example.myapplication.data.remote.dto.SafeGripRequest
-
+import com.example.myapplication.data.remote.dto.AssistantChatRequestDto
 
 class TfgRepository(
     private val apiService: TfgApiService
@@ -65,11 +64,17 @@ class TfgRepository(
         return apiService.detectAndMove()
     }
 
-    suspend fun chatWithAssistant(message: String): AssistantChatResponseDto {
-        return apiService.chatWithAssistant(
-            AssistantChatRequestDto(message = message)
+    suspend fun chatWithAssistant(
+        message: String,
+        config: AssistantRuntimeConfig
+    ) = apiService.chatWithAssistant(
+        AssistantChatRequestDto(
+            message = message,
+            provider = config.provider.name,
+            api_key = config.apiKey,
+            model = config.model
         )
-    }
+    )
 
     suspend fun detectVoice(): VoiceDetectResponse {
         return apiService.detectVoice()

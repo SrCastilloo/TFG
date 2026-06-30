@@ -1,5 +1,6 @@
 package com.example.myapplication.data.remote
 
+import com.example.myapplication.data.remote.dto.AssistantChatRequest
 import com.example.myapplication.data.remote.dto.BasicResponseDto
 import com.example.myapplication.data.remote.dto.HandPositionsDto
 import com.example.myapplication.data.remote.dto.SystemInfoDto
@@ -8,7 +9,6 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import com.example.myapplication.data.remote.dto.CameraDetectionDto
-import com.example.myapplication.data.remote.dto.AssistantChatRequestDto
 import com.example.myapplication.data.remote.dto.AssistantChatResponseDto
 import com.example.myapplication.data.remote.dto.CapacitiveDto
 import com.example.myapplication.data.remote.dto.FullGripDto
@@ -19,6 +19,9 @@ import com.example.myapplication.data.remote.dto.VoiceMoveResponse
 import retrofit2.http.Body
 import com.example.myapplication.data.remote.dto.SafeGripDto
 import com.example.myapplication.data.remote.dto.SafeGripRequest
+import com.example.myapplication.data.remote.dto.AssistantChatRequestDto
+
+
 
 interface TfgApiService {
 

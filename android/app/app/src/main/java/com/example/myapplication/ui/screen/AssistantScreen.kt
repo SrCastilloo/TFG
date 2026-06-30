@@ -1289,3 +1289,49 @@ private fun SectionTitle(
         )
     }
 }
+
+@Composable
+private fun AssistantConnectionCard(
+    userName: String,
+    providerLabel: String,
+    model: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF0F172A)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = "IA conectada",
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Text(
+                text = "Usuario: ${userName.ifBlank { "Usuario actual" }}",
+                color = Color(0xFFCBD5E1),
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Text(
+                text = "Proveedor: ${providerLabel.ifBlank { "No configurado" }}",
+                color = Color(0xFF38BDF8),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = "Modelo: ${model.ifBlank { "No configurado" }}",
+                color = Color(0xFF94A3B8),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
