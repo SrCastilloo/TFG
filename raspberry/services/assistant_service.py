@@ -1,12 +1,9 @@
-import os
 import re
 import json
 import unicodedata
 from typing import Any, Dict, Optional
 
-from dotenv import load_dotenv
-from openai import OpenAI
-
+from services.ai_provider_service import AiProviderService
 
 class AssistantService:
     """
@@ -55,31 +52,47 @@ class AssistantService:
     }
 
     def __init__(self):
-        load_dotenv()
+        self.ai_provider_service = AiProviderService()
 
-        api_key = os.getenv("OPENAI_API_KEY")
-
-        if not api_key:
-            raise ValueError("Falta la variable de entorno OPENAI_API_KEY")
-
-        self.client = OpenAI(api_key=api_key)
-
-    def ask(self, controller, message: str) -> str:
+    def ask(
+    self,
+    controller,
+    message: str,
+    provider: str,
+    api_key: str,
+    model: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Punto principal llamado desde /assistant/chat.
-        Primero intenta resolver comandos reales.
-        Si no es un comando, responde como asistente informativo.
+
+        1. Primero intenta resolver comandos reales sin consumir IA.
+        2. Si no es una acción directa, llama al proveedor elegido por el usuario.
         """
         normalized = self._normalize(message)
+        provider = (provider or "OPENAI").strip().upper()
 
-        # 1. Intentar ejecutar acciones reales o responder consultas directas.
         direct_reply = self._try_direct_response(controller, message, normalized)
 
         if direct_reply is not None:
-            return direct_reply
+            return {
+            "ok": True,
+            "reply": direct_reply,
+            "provider": provider,
+            "model": model,
+            "used_ai": False,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "error": None,
+            }
 
-        # 2. Si no era una acción clara, usamos OpenAI con contexto mejorado.
-        return self._ask_openai_with_context(controller, message)
+        return self._ask_ai_with_context(
+            controller=controller,
+            message=message,
+            provider=provider,
+            api_key=api_key,
+            model=model,
+        )
 
     # ---------------------------------------------------------------------
     # RESPUESTAS DIRECTAS / ACCIONES
@@ -325,79 +338,84 @@ class AssistantService:
     # OPENAI CON CONTEXTO
     # ---------------------------------------------------------------------
 
-    def _ask_openai_with_context(self, controller, message: str) -> str:
+    def _ask_ai_with_context(
+    self,
+    controller,
+    message: str,
+    provider: str,
+    api_key: str,
+    model: Optional[str],
+    ) -> Dict[str, Any]:
         status = self._safe_get_status(controller)
         simulation = self._is_simulation(controller)
 
         context = {
-            "simulation": simulation,
-            "execution_mode": "simulation" if simulation else "real_hardware",
-            "controller_status": status,
-            "available_controller_actions": [
-                "open_hand()",
-                "stop_hand()",
-                "move_to_position(position_id)",
-                "move_manual(command)",
-                "set_mode_hand()",
-                "set_mode_voice()",
-                "set_mode_camera()",
-                "detect_best_object()",
-                "detect_object_and_move()",
-                "refresh_hand_status()",
-                "get_status()",
-            ],
-            "voice_command_mapping": self.VOICE_COMMAND_MAPPING,
-            "camera_object_mapping": self.CAMERA_OBJECT_MAPPING,
-            "important_note": (
-                "La posición física exacta de la mano no siempre se puede conocer. "
-                "last_position_mapped representa la última posición enviada por software."
-            ),
+        "simulation": simulation,
+        "execution_mode": "simulation" if simulation else "real_hardware",
+        "controller_status": status,
+        "available_controller_actions": [
+            "open_hand()",
+            "stop_hand()",
+            "move_to_position(position_id)",
+            "move_manual(command)",
+            "set_mode_hand()",
+            "set_mode_voice()",
+            "set_mode_camera()",
+            "detect_best_object()",
+            "detect_object_and_move()",
+            "refresh_hand_status()",
+            "get_status()",
+        ],
+        "voice_command_mapping": self.VOICE_COMMAND_MAPPING,
+        "camera_object_mapping": self.CAMERA_OBJECT_MAPPING,
+        "important_note": (
+            "La posición física exacta de la mano no siempre se puede conocer. "
+            "last_position_mapped representa la última posición enviada por software."
+        ),
         }
 
         system_prompt = f"""
-Eres el asistente de una mano robótica controlada desde una Raspberry Pi.
+        Eres el asistente de una mano robótica controlada desde una Raspberry Pi.
 
-Responde siempre en español, de forma clara y breve.
-No uses Markdown. No uses negritas con **. Responde en texto plano, con frases cortas y listas simples si hace falta.
+        Responde siempre en español, de forma clara y breve.
+        No uses Markdown. No uses negritas con **.
+        Responde en texto plano, con frases cortas y listas simples si hace falta.
 
-Tu objetivo es ayudar al usuario a entender y manejar el sistema.
+        Tu objetivo es ayudar al usuario a entender y manejar el sistema.
 
-Información importante:
-- El sistema puede estar en modo real o en simulación.
-- Si está en simulación, las acciones no actúan sobre hardware real.
-- Si está en modo real, las órdenes pueden mover la mano física.
-- No inventes datos del hardware.
-- Si no tienes una medición exacta, dilo claramente.
-- La posición física exacta no siempre se conoce: normalmente se conoce la última posición enviada.
-- Las acciones peligrosas o ambiguas deben pedirse de forma clara.
+        Información importante:
+        - El sistema controla una mano robótica.
+        - El backend se ejecuta en una Raspberry Pi.
+        - La app Android se conecta a este backend.
+        - Algunas acciones se ejecutan directamente sin usar IA por seguridad.
+        - Si el usuario pide abrir la mano, parar, mover a una posición o cambiar de modo, normalmente el backend lo resuelve antes de llamar a la IA.
+        - No inventes estados del hardware.
+        - Si no tienes un dato, dilo claramente.
+        - Si hablas de posiciones, recuerda que last_position_mapped es la última orden enviada, no una medición física perfecta.
 
-Contexto actual del sistema:
-{json.dumps(context, ensure_ascii=False, indent=2)}
-"""
+        Contexto técnico actual:
+        {json.dumps(context, ensure_ascii=False, indent=2)}
+        """
 
-        try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature=0.2,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system_prompt
-                    },
-                    {
-                        "role": "user",
-                        "content": message
-                    }
-                ]
-            )
+        result = self.ai_provider_service.generate(
+        provider=provider,
+        api_key=api_key,
+        model=model,
+        system_prompt=system_prompt,
+        user_message=message,
+        )
 
-            return response.choices[0].message.content
-
-        except Exception as e:
-            return (
-                "No he podido contactar con el modelo de IA ahora mismo, "
-                f"pero el backend sigue funcionando. Error: {str(e)}"
-            )
+        return {
+        "ok": result.ok,
+        "reply": result.reply,
+        "provider": result.provider,
+        "model": result.model,
+        "used_ai": result.used_ai,
+        "prompt_tokens": result.prompt_tokens,
+        "completion_tokens": result.completion_tokens,
+        "total_tokens": result.total_tokens,
+        "error": result.error,
+        }
 
     # ---------------------------------------------------------------------
     # EJECUCIÓN SEGURA DE ACCIONES
