@@ -183,7 +183,8 @@ fun DashboardScreen(
     onGoToAssistant: () -> Unit,
     onGoToVoice: () -> Unit,
     onGoToDemo: () -> Unit,
-    onGoToAnalytics:() -> Unit
+    onGoToAnalytics:() -> Unit,
+    onGoToAssistantSettings: () -> Unit
 ) {
     val featuredItem = DashboardItem(
         title = "Control de la mano",
@@ -243,7 +244,21 @@ fun DashboardScreen(
             badge = "Ayuda",
             gradient = AssistantGradient,
             onClick = onGoToAssistant
+        ),
+        DashboardItem(
+            title = "Ajustes IA",
+            subtitle = "Configura si usar ChatGPT/OpenAI o Gemini con tu propia clave.",
+            emoji = "🤖",
+            badge = "IA",
+            gradient = Brush.linearGradient(
+                listOf(
+                    Color(0xFF2563EB),
+                    Color(0xFF7C3AED)
+                )
+            ),
+            onClick = onGoToAssistantSettings
         )
+
     )
 
     BoxWithConstraints(

@@ -10,4 +10,8 @@ object AppRoutes {
     const val ANALYTICS = "analytics"
     const val GRIP_HISTORY = "grip_history"
 
+    const val ASSISTANT_SETTINGS = "assistant_settings"
+
+    const val ACCESS_REQUIRED = "acces_required"
+
 }

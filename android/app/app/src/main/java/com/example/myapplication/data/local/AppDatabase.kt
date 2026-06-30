@@ -15,6 +15,8 @@ import com.example.myapplication.data.local.grip_history.GripHistoryDao
 import com.example.myapplication.data.local.grip_history.GripHistoryEntity
 import com.example.myapplication.data.local.history.ActionHistoryDao
 import com.example.myapplication.data.local.history.ActionHistoryEntity
+import com.example.myapplication.data.local.assistant.AssistantAccountDao
+import com.example.myapplication.data.local.assistant.AssistantAccountEntity
 
 @Database(
     entities = [
@@ -22,14 +24,17 @@ import com.example.myapplication.data.local.history.ActionHistoryEntity
         GripSettingsEntity::class,
         GripHistoryEntity::class,
         AppUserEntity::class,
-        AuthSessionEntity::class
+        AuthSessionEntity::class,
+        AssistantAccountEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun actionHistoryDao(): ActionHistoryDao
+
+    abstract fun assistantAccountDao(): AssistantAccountDao
 
     abstract fun gripSettingsDao(): GripSettingsDao
 
@@ -151,13 +156,31 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_1_2,
                         MIGRATION_2_3,
                         MIGRATION_3_4,
-                        MIGRATION_4_5
+                        MIGRATION_4_5,
+                        MIGRATION_5_6
                     )
                     .fallbackToDestructiveMigration()
                     .build()
 
                 INSTANCE = instance
                 instance
+            }
+        }
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+            CREATE TABLE IF NOT EXISTS assistant_accounts (
+                userId TEXT NOT NULL PRIMARY KEY,
+                selectedProvider TEXT NOT NULL,
+                openAiApiKeyEncrypted TEXT,
+                geminiApiKeyEncrypted TEXT,
+                openAiModel TEXT NOT NULL,
+                geminiModel TEXT NOT NULL,
+                updatedAtMillis INTEGER NOT NULL
+            )
+            """.trimIndent()
+                )
             }
         }
     }

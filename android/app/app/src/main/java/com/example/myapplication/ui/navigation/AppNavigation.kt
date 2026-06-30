@@ -53,7 +53,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.ui.screen.AuthScreen
 import com.example.myapplication.ui.viewmodel.AuthUserUi
 import com.example.myapplication.ui.viewmodel.AuthViewModel
-
+import com.example.myapplication.ui.screen.AssistantSettingsScreen
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.myapplication.ui.screen.AssistantAccessRequiredScreen
+import com.example.myapplication.ui.viewmodel.AssistantAccessViewModel
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 private const val VOICE_CONTROL_ROUTE = "voice_control"
 private const val SETTINGS_ROUTE = "connection_settings"
@@ -72,6 +78,7 @@ data class BottomNavItem(
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val authViewModel: AuthViewModel = viewModel()
     val authState by authViewModel.uiState.collectAsState()
 
@@ -114,7 +121,7 @@ fun AppNavigation() {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val currentRoute = currentDestination?.route
+    val currentRoute = currentBackStackEntry?.destination?.route
 
     Box(
         modifier = Modifier
@@ -163,7 +170,10 @@ fun AppNavigation() {
                             onGoToAssistant = { navController.navigate(AppRoutes.ASSISTANT) },
                             onGoToVoice = { navController.navigate(VOICE_CONTROL_ROUTE) },
                             onGoToDemo = { navController.navigate(DEMO_ROUTE) },
-                            onGoToAnalytics = { navController.navigate(AppRoutes.ANALYTICS) }
+                            onGoToAnalytics = { navController.navigate(AppRoutes.ANALYTICS) },
+                            onGoToAssistantSettings = {
+                                navController.navigate(AppRoutes.ASSISTANT_SETTINGS)
+                            }
 
                         )
                     }
@@ -226,9 +236,23 @@ fun AppNavigation() {
                     }
 
                     composable(AppRoutes.ASSISTANT) {
-                        AssistantScreen(
-                            onBack = { navController.navigate(AppRoutes.DASHBOARD) }
-                        )
+                        val assistantAccessViewModel: AssistantAccessViewModel = viewModel()
+                        val assistantAccessState by assistantAccessViewModel.uiState.collectAsState()
+
+                        if (assistantAccessState.canUseAssistant) {
+                            AssistantScreen(
+                                onBack = {navController.popBackStack()}
+
+                            )
+                        } else {
+                            AssistantAccessRequiredScreen(
+                                uiState = assistantAccessState,
+                                onBack = { navController.popBackStack() },
+                                onOpenSettings = {
+                                    navController.navigate(AppRoutes.ASSISTANT_SETTINGS)
+                                }
+                            )
+                        }
                     }
 
                     composable(SETTINGS_ROUTE) {
@@ -236,17 +260,24 @@ fun AppNavigation() {
                             onBack = { navController.popBackStack() }
                         )
                     }
+                    composable(AppRoutes.ASSISTANT_SETTINGS) {
+                        AssistantSettingsScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
                 }
 
                 if (currentRoute != SETTINGS_ROUTE) {
-                    CurrentUserChip(
-                        user = currentUser,
-                        onLogout = authViewModel::logout,
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .statusBarsPadding()
-                            .padding(top = 14.dp, start = 16.dp)
-                    )
+                    if (currentRoute == AppRoutes.DASHBOARD) {
+                        CurrentUserChip(
+                            user = currentUser,
+                            onLogout = authViewModel::logout,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .statusBarsPadding()
+                                .padding(top = 14.dp, start = 16.dp)
+                        )
+                    }
 
                     FloatingSettingsButton(
                         onClick = { navController.navigate(SETTINGS_ROUTE) },
