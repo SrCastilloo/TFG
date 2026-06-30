@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.myapplication.data.local.AppDatabase
 import com.example.myapplication.data.local.history.ActionHistoryDao
 import com.example.myapplication.data.local.history.ActionHistoryEntity
+import com.example.myapplication.ui.auth.AuthSessionStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -103,7 +104,8 @@ private fun ActionHistoryItem.toEntity(): ActionHistoryEntity {
         title = title,
         detail = detail,
         success = success,
-        actionType = actionType
+        actionType = actionType,
+        userId = AuthSessionStore.currentUserId()
     )
 }
 

@@ -44,6 +44,15 @@ import com.example.myapplication.ui.screen.DiagnosticScreen
 import com.example.myapplication.ui.screen.CapacitiveScreen
 import com.example.myapplication.ui.screen.AnalyticsScreen
 import com.example.myapplication.ui.screen.GripHistoryScreen
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.myapplication.ui.screen.AuthScreen
+import com.example.myapplication.ui.viewmodel.AuthUserUi
+import com.example.myapplication.ui.viewmodel.AuthViewModel
 
 
 private const val VOICE_CONTROL_ROUTE = "voice_control"
@@ -63,6 +72,17 @@ data class BottomNavItem(
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    val authViewModel: AuthViewModel = viewModel()
+    val authState by authViewModel.uiState.collectAsState()
+
+    val currentUser = authState.currentUser
+
+    if (currentUser == null) {
+        AuthScreen(
+            viewModel = authViewModel
+        )
+        return
+    }
 
     val items = listOf(
         BottomNavItem(
@@ -219,6 +239,15 @@ fun AppNavigation() {
                 }
 
                 if (currentRoute != SETTINGS_ROUTE) {
+                    CurrentUserChip(
+                        user = currentUser,
+                        onLogout = authViewModel::logout,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .statusBarsPadding()
+                            .padding(top = 14.dp, start = 16.dp)
+                    )
+
                     FloatingSettingsButton(
                         onClick = { navController.navigate(SETTINGS_ROUTE) },
                         modifier = Modifier
@@ -267,5 +296,30 @@ private fun BottomBar(
                 )
             )
         }
+    }
+}
+
+@Composable
+private fun CurrentUserChip(
+    user: AuthUserUi,
+    onLogout: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.clickable { onLogout() },
+        shape = RoundedCornerShape(999.dp),
+        color = Color(0xEE0F172A),
+        tonalElevation = 0.dp
+    ) {
+        Text(
+            text = if (user.isAdmin) {
+                "👑 ${user.displayName} · Salir"
+            } else {
+                "👤 ${user.displayName} · Salir"
+            },
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+            color = Color.White,
+            fontWeight = FontWeight.ExtraBold
+        )
     }
 }

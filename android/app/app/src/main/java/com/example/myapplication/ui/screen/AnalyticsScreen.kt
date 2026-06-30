@@ -63,6 +63,12 @@
     import androidx.compose.ui.platform.LocalContext
     import com.example.myapplication.ui.export.GripHistoryCsvExporter
     import kotlinx.coroutines.launch
+    import androidx.compose.foundation.clickable
+    import androidx.compose.foundation.horizontalScroll
+    import androidx.compose.foundation.rememberScrollState
+    import com.example.myapplication.ui.viewmodel.AnalyticsPeriod
+    import com.example.myapplication.ui.viewmodel.AnalyticsUserFilterUi
+
 
     @Composable
     fun AnalyticsScreen(
@@ -91,10 +97,27 @@
                     .padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+
                 item {
                     AnalyticsHeader(onBack = onBack)
                 }
 
+                item {
+                    AnalyticsPeriodSelector(
+                        selectedPeriod = uiState.selectedPeriod,
+                        onPeriodSelected = viewModel::setPeriod
+                    )
+                }
+
+                if (uiState.isAdmin) {
+                    item {
+                        AnalyticsUserSelector(
+                            filters = uiState.userFilters,
+                            selectedUserId = uiState.selectedUserId,
+                            onUserSelected = viewModel::setUserFilter
+                        )
+                    }
+                }
                 item {
                     AnalyticsSummaryCards(uiState = uiState)
                 }
@@ -881,6 +904,81 @@
     }
 
     @Composable
+    private fun AnalyticsPeriodSelector(
+        selectedPeriod: AnalyticsPeriod,
+        onPeriodSelected: (AnalyticsPeriod) -> Unit
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White.copy(alpha = 0.08f)
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Periodo de análisis",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    AnalyticsPeriod.values().forEach { period ->
+                        PeriodChip(
+                            period = period,
+                            selected = period == selectedPeriod,
+                            onClick = { onPeriodSelected(period) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun PeriodChip(
+        period: AnalyticsPeriod,
+        selected: Boolean,
+        onClick: () -> Unit
+    ) {
+        val background = if (selected) {
+            Color(0xFF38BDF8)
+        } else {
+            Color.White.copy(alpha = 0.08f)
+        }
+
+        val textColor = if (selected) {
+            Color(0xFF020617)
+        } else {
+            Color(0xFFCBD5E1)
+        }
+
+        Surface(
+            modifier = Modifier.clickable { onClick() },
+            shape = RoundedCornerShape(999.dp),
+            color = background
+        ) {
+            Text(
+                text = period.label,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                color = textColor,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1
+            )
+        }
+    }
+
+    @Composable
     private fun GripReasonsCard(
         reasons: List<GripReasonUsageUi>
     ) {
@@ -1156,6 +1254,120 @@
             style = MaterialTheme.typography.bodyMedium
         )
     }
+
+
+    @Composable
+    private fun AnalyticsUserSelector(
+        filters: List<AnalyticsUserFilterUi>,
+        selectedUserId: String?,
+        onUserSelected: (String?) -> Unit
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF0F172A)
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Filtro de usuario",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Text(
+                    text = "Como administrador puedes consultar estadísticas globales o filtrar por un usuario concreto.",
+                    color = Color(0xFF94A3B8),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    filters.forEach { filter ->
+                        val selected = if (filter.isAllUsers) {
+                            selectedUserId == null
+                        } else {
+                            selectedUserId == filter.userId
+                        }
+
+                        UserFilterChip(
+                            label = filter.label,
+                            selected = selected,
+                            onClick = {
+                                onUserSelected(filter.userId)
+                            }
+                        )
+                    }
+                }
+
+                val selectedLabel = filters.firstOrNull { filter ->
+                    if (filter.isAllUsers) {
+                        selectedUserId == null
+                    } else {
+                        selectedUserId == filter.userId
+                    }
+                }?.label ?: "Sin filtro"
+
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.White.copy(alpha = 0.07f)
+                ) {
+                    Text(
+                        text = "Vista actual: $selectedLabel",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                        color = Color(0xFFCBD5E1),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun UserFilterChip(
+        label: String,
+        selected: Boolean,
+        onClick: () -> Unit
+    ) {
+        val background = if (selected) {
+            Color(0xFFA855F7)
+        } else {
+            Color.White.copy(alpha = 0.08f)
+        }
+
+        val textColor = if (selected) {
+            Color.White
+        } else {
+            Color(0xFFCBD5E1)
+        }
+
+        Surface(
+            modifier = Modifier.clickable { onClick() },
+            shape = RoundedCornerShape(999.dp),
+            color = background
+        ) {
+            Text(
+                text = label,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                color = textColor,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1
+            )
+        }
+    }
+
+
 
     private val chartColors = listOf(
         Color(0xFF38BDF8),

@@ -10,7 +10,6 @@ data class GripHistoryEntity(
 
     val timestampMillis: Long,
 
-    // "safe" o "full"
     val gripType: String,
 
     val ok: Boolean,
@@ -22,11 +21,9 @@ data class GripHistoryEntity(
     val closeStep: Int?,
     val targetPositionId: Int?,
 
-    // Para agarre seguro
     val contactDetected: Boolean?,
     val contactSensor: String?,
 
-    // Para agarre completo
     val allContactsDetected: Boolean?,
     val activeSensorsCsv: String?,
     val contactSensorsCsv: String?,
@@ -35,5 +32,7 @@ data class GripHistoryEntity(
     val contactCount: Int?,
     val requiredContactCount: Int?,
 
-    val ignoredSensorsCsv: String?
+    val ignoredSensorsCsv: String?,
+
+    val userId: String? = null
 )

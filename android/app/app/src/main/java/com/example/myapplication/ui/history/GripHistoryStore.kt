@@ -8,6 +8,7 @@ import com.example.myapplication.data.remote.dto.FullGripDto
 import com.example.myapplication.data.remote.dto.FullGripRequest
 import com.example.myapplication.data.remote.dto.SafeGripDto
 import com.example.myapplication.data.remote.dto.SafeGripRequest
+import com.example.myapplication.ui.auth.AuthSessionStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,6 +32,8 @@ object GripHistoryStore {
         response: SafeGripDto,
         request: SafeGripRequest
     ) {
+        val localDao = dao ?: return
+
         val entity = GripHistoryEntity(
             id = UUID.randomUUID().toString(),
             timestampMillis = System.currentTimeMillis(),
@@ -57,13 +60,13 @@ object GripHistoryStore {
             contactCount = response.contact_count,
             requiredContactCount = null,
 
-            ignoredSensorsCsv = (response.ignored_sensors ?: request.ignored_sensors).toCsv()
+            ignoredSensorsCsv = (response.ignored_sensors ?: request.ignored_sensors).toCsv(),
+
+            userId = AuthSessionStore.currentUserId()
         )
 
-        dao?.let { localDao ->
-            scope.launch {
-                localDao.insert(entity)
-            }
+        scope.launch {
+            localDao.insert(entity)
         }
     }
 
@@ -71,6 +74,8 @@ object GripHistoryStore {
         response: FullGripDto,
         request: FullGripRequest
     ) {
+        val localDao = dao ?: return
+
         val entity = GripHistoryEntity(
             id = UUID.randomUUID().toString(),
             timestampMillis = System.currentTimeMillis(),
@@ -97,15 +102,16 @@ object GripHistoryStore {
             contactCount = response.contact_count,
             requiredContactCount = response.required_contact_count,
 
-            ignoredSensorsCsv = (response.ignored_sensors ?: request.ignored_sensors).toCsv()
+            ignoredSensorsCsv = (response.ignored_sensors ?: request.ignored_sensors).toCsv(),
+
+            userId = AuthSessionStore.currentUserId()
         )
 
-        dao?.let { localDao ->
-            scope.launch {
-                localDao.insert(entity)
-            }
+        scope.launch {
+            localDao.insert(entity)
         }
     }
+
     fun addSafeGripFailure(
         request: SafeGripRequest,
         errorMessage: String,
@@ -139,7 +145,9 @@ object GripHistoryStore {
             contactCount = 0,
             requiredContactCount = null,
 
-            ignoredSensorsCsv = request.ignored_sensors.toCsv()
+            ignoredSensorsCsv = request.ignored_sensors.toCsv(),
+
+            userId = AuthSessionStore.currentUserId()
         )
 
         scope.launch {
@@ -180,7 +188,9 @@ object GripHistoryStore {
             contactCount = 0,
             requiredContactCount = null,
 
-            ignoredSensorsCsv = request.ignored_sensors.toCsv()
+            ignoredSensorsCsv = request.ignored_sensors.toCsv(),
+
+            userId = AuthSessionStore.currentUserId()
         )
 
         scope.launch {

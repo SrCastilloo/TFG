@@ -4,8 +4,10 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.data.local.AppDatabase
+import com.example.myapplication.data.local.auth.AppUserEntity
 import com.example.myapplication.data.local.grip_history.GripHistoryEntity
 import com.example.myapplication.data.local.history.ActionHistoryEntity
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -13,6 +15,21 @@ import kotlinx.coroutines.flow.stateIn
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+
+enum class AnalyticsPeriod(
+    val label: String
+) {
+    TODAY("Hoy"),
+    LAST_7_DAYS("7 días"),
+    LAST_30_DAYS("30 días"),
+    ALL("Todo")
+}
+
+data class AnalyticsUserFilterUi(
+    val userId: String?,
+    val label: String,
+    val isAllUsers: Boolean = false
+)
 
 data class FunctionUsageUi(
     val label: String,
@@ -52,6 +69,13 @@ data class GripReasonUsageUi(
 )
 
 data class AnalyticsUiState(
+    val selectedPeriod: AnalyticsPeriod = AnalyticsPeriod.ALL,
+
+    val isAdmin: Boolean = false,
+    val selectedUserId: String? = null,
+    val effectiveUserId: String? = null,
+    val userFilters: List<AnalyticsUserFilterUi> = emptyList(),
+
     val totalActions: Int = 0,
     val successActions: Int = 0,
     val failedActions: Int = 0,
@@ -60,7 +84,6 @@ data class AnalyticsUiState(
     val sourceUsage: List<SourceUsageUi> = emptyList(),
     val dailyUsage: List<DailyUsageUi> = emptyList(),
 
-    // Estadísticas específicas de agarres
     val totalGrips: Int = 0,
     val successfulGrips: Int = 0,
     val failedGrips: Int = 0,
@@ -75,21 +98,96 @@ data class AnalyticsUiState(
     val gripReasonUsage: List<GripReasonUsageUi> = emptyList()
 )
 
+private data class AnalyticsFilters(
+    val period: AnalyticsPeriod,
+    val selectedUserId: String?
+)
+
 class AnalyticsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = AppDatabase.getInstance(application)
 
     private val actionHistoryDao = database.actionHistoryDao()
     private val gripHistoryDao = database.gripHistoryDao()
+    private val authDao = database.authDao()
+
+    private val selectedPeriod = MutableStateFlow(AnalyticsPeriod.ALL)
+    private val selectedUserId = MutableStateFlow<String?>(null)
+
+    private val filters =
+        combine(
+            selectedPeriod,
+            selectedUserId
+        ) { period, userId ->
+            AnalyticsFilters(
+                period = period,
+                selectedUserId = userId
+            )
+        }
+
+    fun setPeriod(period: AnalyticsPeriod) {
+        selectedPeriod.value = period
+    }
+
+    fun setUserFilter(userId: String?) {
+        selectedUserId.value = userId
+    }
 
     val uiState: StateFlow<AnalyticsUiState> =
         combine(
             actionHistoryDao.observeAll(),
-            gripHistoryDao.observeAll()
-        ) { actionHistory, gripHistory ->
+            gripHistoryDao.observeAll(),
+            authDao.observeCurrentUser(),
+            authDao.observeAllUsers(),
+            filters
+        ) { actionHistory, gripHistory, currentUser, allUsers, activeFilters ->
+
+            if (currentUser == null) {
+                return@combine AnalyticsUiState()
+            }
+
+            val isAdmin = currentUser.role == "ADMIN"
+
+            val effectiveUserId = if (isAdmin) {
+                activeFilters.selectedUserId
+            } else {
+                currentUser.id
+            }
+
+            val userFilteredActions = filterActionsByUser(
+                actions = actionHistory,
+                isAdmin = isAdmin,
+                effectiveUserId = effectiveUserId
+            )
+
+            val userFilteredGrips = filterGripsByUser(
+                grips = gripHistory,
+                isAdmin = isAdmin,
+                effectiveUserId = effectiveUserId
+            )
+
+            val periodFilteredActions = filterActionsByPeriod(
+                actions = userFilteredActions,
+                period = activeFilters.period
+            )
+
+            val periodFilteredGrips = filterGripsByPeriod(
+                grips = userFilteredGrips,
+                period = activeFilters.period
+            )
+
             buildAnalytics(
-                actionHistory = actionHistory,
-                gripHistory = gripHistory
+                actionHistory = periodFilteredActions,
+                gripHistory = periodFilteredGrips,
+                selectedPeriod = activeFilters.period,
+                isAdmin = isAdmin,
+                selectedUserId = activeFilters.selectedUserId,
+                effectiveUserId = effectiveUserId,
+                userFilters = buildUserFilters(
+                    currentUser = currentUser,
+                    allUsers = allUsers,
+                    isAdmin = isAdmin
+                )
             )
         }.stateIn(
             scope = viewModelScope,
@@ -99,7 +197,12 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun buildAnalytics(
         actionHistory: List<ActionHistoryEntity>,
-        gripHistory: List<GripHistoryEntity>
+        gripHistory: List<GripHistoryEntity>,
+        selectedPeriod: AnalyticsPeriod,
+        isAdmin: Boolean,
+        selectedUserId: String?,
+        effectiveUserId: String?,
+        userFilters: List<AnalyticsUserFilterUi>
     ): AnalyticsUiState {
         val totalActions = actionHistory.size
         val successActions = actionHistory.count { it.success }
@@ -139,6 +242,13 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
         val gripStats = buildGripAnalytics(gripHistory)
 
         return AnalyticsUiState(
+            selectedPeriod = selectedPeriod,
+
+            isAdmin = isAdmin,
+            selectedUserId = selectedUserId,
+            effectiveUserId = effectiveUserId,
+            userFilters = userFilters,
+
             totalActions = totalActions,
             successActions = successActions,
             failedActions = failedActions,
@@ -160,6 +270,109 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
             targetPositionUsage = gripStats.targetPositionUsage,
             gripReasonUsage = gripStats.gripReasonUsage
         )
+    }
+
+    private fun buildUserFilters(
+        currentUser: AppUserEntity,
+        allUsers: List<AppUserEntity>,
+        isAdmin: Boolean
+    ): List<AnalyticsUserFilterUi> {
+        if (!isAdmin) {
+            return listOf(
+                AnalyticsUserFilterUi(
+                    userId = currentUser.id,
+                    label = "👤 ${currentUser.displayName}",
+                    isAllUsers = false
+                )
+            )
+        }
+
+        val sortedUsers = allUsers.sortedWith(
+            compareByDescending<AppUserEntity> { it.role == "ADMIN" }
+                .thenBy { it.displayName.lowercase(Locale.getDefault()) }
+        )
+
+        val allUsersFilter = AnalyticsUserFilterUi(
+            userId = null,
+            label = "🌍 Todos los usuarios",
+            isAllUsers = true
+        )
+
+        val userFilters = sortedUsers.map { user ->
+            AnalyticsUserFilterUi(
+                userId = user.id,
+                label = if (user.role == "ADMIN") {
+                    "👑 ${user.displayName}"
+                } else {
+                    "👤 ${user.displayName}"
+                },
+                isAllUsers = false
+            )
+        }
+
+        return listOf(allUsersFilter) + userFilters
+    }
+
+    private fun filterActionsByUser(
+        actions: List<ActionHistoryEntity>,
+        isAdmin: Boolean,
+        effectiveUserId: String?
+    ): List<ActionHistoryEntity> {
+        if (isAdmin && effectiveUserId == null) return actions
+
+        return actions.filter { it.userId == effectiveUserId }
+    }
+
+    private fun filterGripsByUser(
+        grips: List<GripHistoryEntity>,
+        isAdmin: Boolean,
+        effectiveUserId: String?
+    ): List<GripHistoryEntity> {
+        if (isAdmin && effectiveUserId == null) return grips
+
+        return grips.filter { it.userId == effectiveUserId }
+    }
+
+    private fun filterActionsByPeriod(
+        actions: List<ActionHistoryEntity>,
+        period: AnalyticsPeriod
+    ): List<ActionHistoryEntity> {
+        val startMillis = periodStartMillis(period) ?: return actions
+
+        return actions.filter { action ->
+            action.timestampMillis >= startMillis
+        }
+    }
+
+    private fun filterGripsByPeriod(
+        grips: List<GripHistoryEntity>,
+        period: AnalyticsPeriod
+    ): List<GripHistoryEntity> {
+        val startMillis = periodStartMillis(period) ?: return grips
+
+        return grips.filter { grip ->
+            grip.timestampMillis >= startMillis
+        }
+    }
+
+    private fun periodStartMillis(period: AnalyticsPeriod): Long? {
+        if (period == AnalyticsPeriod.ALL) return null
+
+        val calendar = Calendar.getInstance()
+
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+
+        when (period) {
+            AnalyticsPeriod.TODAY -> Unit
+            AnalyticsPeriod.LAST_7_DAYS -> calendar.add(Calendar.DAY_OF_YEAR, -6)
+            AnalyticsPeriod.LAST_30_DAYS -> calendar.add(Calendar.DAY_OF_YEAR, -29)
+            AnalyticsPeriod.ALL -> return null
+        }
+
+        return calendar.timeInMillis
     }
 
     private fun buildLastSevenDays(

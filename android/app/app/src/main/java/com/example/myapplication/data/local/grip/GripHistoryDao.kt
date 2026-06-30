@@ -42,4 +42,31 @@ interface GripHistoryDao {
     """
     )
     suspend fun getAllOnce(): List<GripHistoryEntity>
+
+    @Query(
+        """
+    SELECT *
+    FROM grip_history
+    WHERE userId = :userId
+    ORDER BY timestampMillis DESC
+    """
+    )
+    fun observeAllForUser(userId: String): Flow<List<GripHistoryEntity>>
+
+    @Query(
+        """
+    SELECT *
+    FROM grip_history
+    WHERE userId = :userId
+    ORDER BY timestampMillis DESC
+    """
+    )
+    suspend fun getAllOnceForUser(userId: String): List<GripHistoryEntity>
+
+    @Query("DELETE FROM grip_history WHERE userId = :userId")
+    suspend fun clearForUser(userId: String)
+
+
+
+
 }

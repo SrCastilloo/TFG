@@ -6,6 +6,9 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.myapplication.data.local.auth.AppUserEntity
+import com.example.myapplication.data.local.auth.AuthDao
+import com.example.myapplication.data.local.auth.AuthSessionEntity
 import com.example.myapplication.data.local.grip.GripSettingsDao
 import com.example.myapplication.data.local.grip.GripSettingsEntity
 import com.example.myapplication.data.local.grip_history.GripHistoryDao
@@ -17,9 +20,11 @@ import com.example.myapplication.data.local.history.ActionHistoryEntity
     entities = [
         ActionHistoryEntity::class,
         GripSettingsEntity::class,
-        GripHistoryEntity::class
+        GripHistoryEntity::class,
+        AppUserEntity::class,
+        AuthSessionEntity::class
     ],
-    version = 3,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -29,6 +34,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun gripSettingsDao(): GripSettingsDao
 
     abstract fun gripHistoryDao(): GripHistoryDao
+
+    abstract fun authDao(): AuthDao
 
     companion object {
         @Volatile
@@ -80,6 +87,59 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS app_users (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        username TEXT NOT NULL,
+                        displayName TEXT NOT NULL,
+                        passwordHash TEXT NOT NULL,
+                        passwordSalt TEXT NOT NULL,
+                        role TEXT NOT NULL,
+                        createdAtMillis INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+
+                database.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS index_app_users_username
+                    ON app_users(username)
+                    """.trimIndent()
+                )
+
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS auth_session (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        userId TEXT NOT NULL,
+                        loggedAtMillis INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+            ALTER TABLE action_history 
+            ADD COLUMN userId TEXT
+            """.trimIndent()
+                )
+
+                database.execSQL(
+                    """
+            ALTER TABLE grip_history 
+            ADD COLUMN userId TEXT
+            """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -87,7 +147,12 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "tfg_local_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(
+                        MIGRATION_1_2,
+                        MIGRATION_2_3,
+                        MIGRATION_3_4,
+                        MIGRATION_4_5
+                    )
                     .fallbackToDestructiveMigration()
                     .build()
 

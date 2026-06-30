@@ -12,5 +12,6 @@ data class ActionHistoryEntity(
     val title: String,
     val detail: String,
     val success: Boolean,
-    val actionType: String
+    val actionType: String,
+    val userId: String? = null
 )
