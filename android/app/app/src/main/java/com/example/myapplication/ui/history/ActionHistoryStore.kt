@@ -125,6 +125,7 @@ private fun inferActionType(source: String, title: String): String {
     val text = "$source $title".lowercase(Locale.getDefault())
 
     return when {
+        "asistente" in text || "assistant" in text || "ia" in text -> "assistant"
         "agarre" in text -> "grip"
         "cámara" in text || "camara" in text || "camera" in text -> "camera"
         "voz" in text || "voice" in text || "comando" in text -> "voice"
