@@ -68,6 +68,7 @@
     import androidx.compose.foundation.rememberScrollState
     import com.example.myapplication.ui.viewmodel.AnalyticsPeriod
     import com.example.myapplication.ui.viewmodel.AnalyticsUserFilterUi
+    import com.example.myapplication.ui.viewmodel.AdminUserSummaryUi
 
 
     @Composable
@@ -116,6 +117,10 @@
                             selectedUserId = uiState.selectedUserId,
                             onUserSelected = viewModel::setUserFilter
                         )
+                    }
+
+                    item {
+                        AdminDashboardCard(uiState = uiState)
                     }
                 }
                 item {
@@ -1254,7 +1259,234 @@
             style = MaterialTheme.typography.bodyMedium
         )
     }
+    @Composable
+    private fun AdminDashboardCard(
+        uiState: AnalyticsUiState
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF111827)
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = Color(0xFFA855F7).copy(alpha = 0.20f)
+                    ) {
+                        Text(
+                            text = "👑",
+                            modifier = Modifier.padding(10.dp),
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
 
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "Panel de administrador",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+
+                        Text(
+                            text = "Resumen global de usuarios y actividad registrada.",
+                            color = Color(0xFF94A3B8),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    MiniStatCard(
+                        modifier = Modifier.weight(1f),
+                        title = "Usuarios",
+                        value = uiState.totalUsers.toString(),
+                        iconColor = Color(0xFFA855F7)
+                    )
+
+                    MiniStatCard(
+                        modifier = Modifier.weight(1f),
+                        title = "Admins",
+                        value = uiState.adminUsers.toString(),
+                        iconColor = Color(0xFF38BDF8)
+                    )
+
+                    MiniStatCard(
+                        modifier = Modifier.weight(1f),
+                        title = "Estándar",
+                        value = uiState.standardUsers.toString(),
+                        iconColor = Color(0xFF22C55E)
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color.White.copy(alpha = 0.07f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "Vista actual",
+                            color = Color(0xFF94A3B8),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Text(
+                            text = uiState.selectedUserLabel,
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+
+                        Text(
+                            text = "${uiState.totalActions} acciones · ${uiState.totalGrips} agarres · ${uiState.totalRecords} registros totales",
+                            color = Color(0xFFCBD5E1),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Actividad por usuario",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                if (uiState.adminUserSummaries.isEmpty()) {
+                    EmptyAnalyticsText()
+                } else {
+                    uiState.adminUserSummaries.take(6).forEach { user ->
+                        AdminUserActivityRow(user = user)
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun AdminUserActivityRow(
+        user: AdminUserSummaryUi
+    ) {
+        val progress = user.successRate.coerceIn(0f, 1f)
+
+        val roleText = if (user.isAdmin) {
+            "Administrador"
+        } else {
+            "Usuario estándar"
+        }
+
+        val roleColor = if (user.isAdmin) {
+            Color(0xFFA855F7)
+        } else {
+            Color(0xFF38BDF8)
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White.copy(alpha = 0.07f)
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = roleColor.copy(alpha = 0.18f)
+                    ) {
+                        Text(
+                            text = if (user.isAdmin) "👑" else "👤",
+                            modifier = Modifier.padding(8.dp),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = user.displayName,
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Text(
+                            text = "@${user.username} · $roleText",
+                            color = roleColor,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Text(
+                        text = "${user.totalRecords}",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+
+                Text(
+                    text = "${user.actionCount} acciones · ${user.gripCount} agarres · ${user.successCount} correctos · ${user.failureCount} fallidos",
+                    color = Color(0xFFCBD5E1),
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                Text(
+                    text = "Última actividad: ${user.lastActivityLabel}",
+                    color = Color(0xFF94A3B8),
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                LinearProgressIndicator(
+                    progress = {
+                        progress
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp),
+                    color = if (progress >= 0.75f) {
+                        Color(0xFF22C55E)
+                    } else if (progress >= 0.4f) {
+                        Color(0xFFF97316)
+                    } else {
+                        Color(0xFFEF4444)
+                    },
+                    trackColor = Color.White.copy(alpha = 0.10f),
+                    strokeCap = StrokeCap.Round
+                )
+            }
+        }
+    }
 
     @Composable
     private fun AnalyticsUserSelector(

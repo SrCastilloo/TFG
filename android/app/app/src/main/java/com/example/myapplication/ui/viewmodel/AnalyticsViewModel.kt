@@ -31,6 +31,31 @@ data class AnalyticsUserFilterUi(
     val isAllUsers: Boolean = false
 )
 
+data class AdminUserSummaryUi(
+    val userId: String,
+    val displayName: String,
+    val username: String,
+    val role: String,
+    val actionCount: Int,
+    val gripCount: Int,
+    val successCount: Int,
+    val failureCount: Int,
+    val lastActivityLabel: String
+) {
+    val isAdmin: Boolean
+        get() = role == "ADMIN"
+
+    val totalRecords: Int
+        get() = actionCount + gripCount
+
+    val successRate: Float
+        get() = if (totalRecords > 0) {
+            successCount.toFloat() / totalRecords.toFloat()
+        } else {
+            0f
+        }
+}
+
 data class FunctionUsageUi(
     val label: String,
     val count: Int,
@@ -75,6 +100,13 @@ data class AnalyticsUiState(
     val selectedUserId: String? = null,
     val effectiveUserId: String? = null,
     val userFilters: List<AnalyticsUserFilterUi> = emptyList(),
+
+    val totalUsers: Int = 0,
+    val adminUsers: Int = 0,
+    val standardUsers: Int = 0,
+    val selectedUserLabel: String = "Todos los usuarios",
+    val adminUserSummaries: List<AdminUserSummaryUi> = emptyList(),
+    val totalRecords: Int = 0,
 
     val totalActions: Int = 0,
     val successActions: Int = 0,
@@ -176,19 +208,25 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
                 period = activeFilters.period
             )
 
+            val userFilters = buildUserFilters(
+                currentUser = currentUser,
+                allUsers = allUsers,
+                isAdmin = isAdmin
+            )
+
             buildAnalytics(
                 actionHistory = periodFilteredActions,
                 gripHistory = periodFilteredGrips,
+                allActionHistory = actionHistory,
+                allGripHistory = gripHistory,
+                allUsers = allUsers,
                 selectedPeriod = activeFilters.period,
                 isAdmin = isAdmin,
                 selectedUserId = activeFilters.selectedUserId,
                 effectiveUserId = effectiveUserId,
-                userFilters = buildUserFilters(
-                    currentUser = currentUser,
-                    allUsers = allUsers,
-                    isAdmin = isAdmin
-                )
+                userFilters = userFilters
             )
+
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -198,6 +236,9 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
     private fun buildAnalytics(
         actionHistory: List<ActionHistoryEntity>,
         gripHistory: List<GripHistoryEntity>,
+        allActionHistory: List<ActionHistoryEntity>,
+        allGripHistory: List<GripHistoryEntity>,
+        allUsers: List<AppUserEntity>,
         selectedPeriod: AnalyticsPeriod,
         isAdmin: Boolean,
         selectedUserId: String?,
@@ -241,6 +282,32 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
 
         val gripStats = buildGripAnalytics(gripHistory)
 
+        val periodAllActions = filterActionsByPeriod(
+            actions = allActionHistory,
+            period = selectedPeriod
+        )
+
+        val periodAllGrips = filterGripsByPeriod(
+            grips = allGripHistory,
+            period = selectedPeriod
+        )
+
+        val adminUserSummaries = if (isAdmin) {
+            buildAdminUserSummaries(
+                users = allUsers,
+                actionHistory = periodAllActions,
+                gripHistory = periodAllGrips
+            )
+        } else {
+            emptyList()
+        }
+
+
+        val selectedUserLabel = buildSelectedUserLabel(
+            userFilters = userFilters,
+            selectedUserId = selectedUserId
+        )
+
         return AnalyticsUiState(
             selectedPeriod = selectedPeriod,
 
@@ -248,6 +315,13 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
             selectedUserId = selectedUserId,
             effectiveUserId = effectiveUserId,
             userFilters = userFilters,
+
+            totalUsers = if (isAdmin) allUsers.size else 1,
+            adminUsers = if (isAdmin) allUsers.count { it.role == "ADMIN" } else 0,
+            standardUsers = if (isAdmin) allUsers.count { it.role != "ADMIN" } else 0,
+            selectedUserLabel = selectedUserLabel,
+            adminUserSummaries = adminUserSummaries,
+            totalRecords = totalActions + gripStats.totalGrips,
 
             totalActions = totalActions,
             successActions = successActions,
@@ -520,6 +594,68 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
             gripReasonUsage = gripReasonUsage
         )
     }
+    private fun buildSelectedUserLabel(
+        userFilters: List<AnalyticsUserFilterUi>,
+        selectedUserId: String?
+    ): String {
+        return userFilters.firstOrNull { filter ->
+            if (filter.isAllUsers) {
+                selectedUserId == null
+            } else {
+                selectedUserId == filter.userId
+            }
+        }?.label ?: "Todos los usuarios"
+    }
+
+    private fun buildAdminUserSummaries(
+        users: List<AppUserEntity>,
+        actionHistory: List<ActionHistoryEntity>,
+        gripHistory: List<GripHistoryEntity>
+    ): List<AdminUserSummaryUi> {
+        return users.map { user ->
+            val userActions = actionHistory.filter { it.userId == user.id }
+            val userGrips = gripHistory.filter { it.userId == user.id }
+
+            val actionSuccessCount = userActions.count { it.success }
+            val actionFailureCount = userActions.size - actionSuccessCount
+
+            val gripSuccessCount = userGrips.count { isGripSuccessful(it) }
+            val gripFailureCount = userGrips.size - gripSuccessCount
+
+            val lastActivityMillis = (
+                    userActions.map { it.timestampMillis } +
+                            userGrips.map { it.timestampMillis }
+                    ).maxOrNull()
+
+            AdminUserSummaryUi(
+                userId = user.id,
+                displayName = user.displayName,
+                username = user.username,
+                role = user.role,
+                actionCount = userActions.size,
+                gripCount = userGrips.size,
+                successCount = actionSuccessCount + gripSuccessCount,
+                failureCount = actionFailureCount + gripFailureCount,
+                lastActivityLabel = formatLastActivity(lastActivityMillis)
+            )
+        }
+            .sortedWith(
+                compareByDescending<AdminUserSummaryUi> { it.totalRecords }
+                    .thenBy { it.displayName.lowercase(Locale.getDefault()) }
+            )
+    }
+
+    private fun formatLastActivity(timestampMillis: Long?): String {
+        if (timestampMillis == null) return "Sin actividad"
+
+        val formatter = SimpleDateFormat(
+            "dd/MM/yyyy HH:mm",
+            Locale.getDefault()
+        )
+
+        return formatter.format(timestampMillis)
+    }
+
 
     private fun isGripSuccessful(item: GripHistoryEntity): Boolean {
         return when (item.gripType) {
